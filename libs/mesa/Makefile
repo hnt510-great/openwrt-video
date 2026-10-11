@@ -13,10 +13,10 @@ PKG_LICENSE:=BSD-3-Clause
 
 PKG_INSTALL:=1
 
-PKG_BUILD_DEPENDS:=glslang/host python3/host libva vulkan-headers \
+PKG_BUILD_DEPENDS:=glslang/host python3/host python-packaging/host libva vulkan-headers \
 		   MESA_USE_LLVM:llvm MESA_USE_LLVM:mesa/host
 
-HOST_BUILD_DEPENDS:=python3/host spirv-tools/host MESA_USE_LLVM:llvm
+HOST_BUILD_DEPENDS:=python3/host python-packaging/host spirv-tools/host MESA_USE_LLVM:llvm
 
 PKG_CONFIG_DEPENDS:= \
 	CONFIG_PACKAGE_libmesa-amd \

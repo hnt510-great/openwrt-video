@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=pango
 PKG_VERSION:=1.58.2
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@GNOME/$(PKG_NAME)/$(basename $(PKG_VERSION))
@@ -28,18 +28,26 @@ define Package/libpango
   SUBMENU:=Video
   TITLE:=libpango
   URL:=https://www.pango.org/
-  DEPENDS:=+glib2 +fribidi +harfbuzz +libcairo $(ICONV_DEPENDS) $(INTL_DEPENDS)
+  DEPENDS:=+PACKAGE_glib2-gir:glib2-gir +glib2 +fribidi +harfbuzz +libcairo $(ICONV_DEPENDS) $(INTL_DEPENDS)
 endef
 
 MESON_ARGS += \
-	-Dintrospection=disabled \
 	-Dgtk_doc=false \
 	-Dsysprof=disabled
 
 define package/libpango/decription
 endef
 
+PKG_CONFIG_DEPENDS += CONFIG_PACKAGE_glib2-gir
+ifeq ($(CONFIG_PACKAGE_glib2-gir),y)
+include $(INCLUDE_DIR)/gobject-introspection.mk
+MESON_ARGS += -Dintrospection=enabled
+endif
+
 define Build/InstallDev
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(INSTALL_DIR) $(1)/usr/share/gir-1.0 $(1)/usr/lib/girepository-1.0)
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(CP) $(PKG_INSTALL_DIR)/usr/share/gir-1.0/*.gir $(1)/usr/share/gir-1.0/)
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(CP) $(PKG_INSTALL_DIR)/usr/lib/girepository-1.0/*.typelib $(1)/usr/lib/girepository-1.0/)
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.so* $(1)/usr/lib/
 	$(INSTALL_DIR) $(1)/usr/include/pango-1.0/pango
@@ -50,6 +58,8 @@ define Build/InstallDev
 endef
 
 define Package/libpango/install
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(INSTALL_DIR) $(1)/usr/lib/girepository-1.0)
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(CP) $(PKG_INSTALL_DIR)/usr/lib/girepository-1.0/*.typelib $(1)/usr/lib/girepository-1.0/)
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.so* $(1)/usr/lib/
 endef

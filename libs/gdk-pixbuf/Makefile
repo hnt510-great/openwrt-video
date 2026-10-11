@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=gdk-pixbuf
 PKG_VERSION:=2.44.8
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@GNOME/$(PKG_NAME)/$(basename $(PKG_VERSION))
@@ -29,7 +29,7 @@ define Package/libgdk-pixbuf
   SECTION:=video-frameworks
   CATEGORY:=Video
   SUBMENU:=Frameworks and Toolkits
-  DEPENDS:=+giflib +libpng +libtiff +libjpeg +shared-mime-info
+  DEPENDS:=+PACKAGE_glib2-gir:glib2-gir +giflib +libpng +libtiff +libjpeg +shared-mime-info
   TITLE:=GdkPixbuf: Image loading library
   URL:=http://www.gtk.org/
 endef
@@ -38,7 +38,16 @@ define Package/libgdk-pixbuf/description
   GdkPixbuf is a library that loads image data in various formats and stores it as linear buffers in memory.
 endef
 
+PKG_CONFIG_DEPENDS += CONFIG_PACKAGE_glib2-gir
+ifeq ($(CONFIG_PACKAGE_glib2-gir),y)
+include $(INCLUDE_DIR)/gobject-introspection.mk
+MESON_ARGS += -Dintrospection=enabled -Ddefault_library=both
+endif
+
 define Build/InstallDev
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(INSTALL_DIR) $(1)/usr/share/gir-1.0 $(1)/usr/lib/girepository-1.0)
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(CP) $(PKG_INSTALL_DIR)/usr/share/gir-1.0/*.gir $(1)/usr/share/gir-1.0/)
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(CP) $(PKG_INSTALL_DIR)/usr/lib/girepository-1.0/*.typelib $(1)/usr/lib/girepository-1.0/)
 	$(INSTALL_DIR) $(1)/usr/include/gdk-pixbuf-2.0/gdk-pixbuf
 	$(CP) \
 		$(PKG_INSTALL_DIR)/usr/include/gdk-pixbuf-2.0/gdk-pixbuf/*.h \
@@ -56,6 +65,8 @@ define Build/InstallDev
 endef
 
 define Package/libgdk-pixbuf/install
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(INSTALL_DIR) $(1)/usr/lib/girepository-1.0)
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(CP) $(PKG_INSTALL_DIR)/usr/lib/girepository-1.0/*.typelib $(1)/usr/lib/girepository-1.0/)
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.so* $(1)/usr/lib/
 

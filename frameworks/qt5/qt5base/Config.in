@@ -15,10 +15,13 @@ config BUILD_qt5base-gui_DRM
     depends on PACKAGE_qt5base-gui
     default y
 
+# Keep this choice independent of PACKAGE_qt5base-gui: its conditional
+# Mesa dependency propagates hardware prerequisites back to the package.
+menu "Qt5 GUI OpenGL configuration"
+
 choice
     prompt "Which OpenGL variant to use"
     default BUILD_qt5base-gui_OPENGL_NONE
-    depends on PACKAGE_qt5base-gui
 
 config BUILD_qt5base-gui_OPENGL_OPENGLES2
     bool "es2"
@@ -27,3 +30,5 @@ config BUILD_qt5base-gui_OPENGL_NONE
     bool "no"
 
 endchoice
+
+endmenu

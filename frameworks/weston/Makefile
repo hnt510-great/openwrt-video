@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=weston
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_VERSION:=16.0.0
 PKG_MAJOR_VERSION:=$(firstword $(subst .,$(space),$(PKG_VERSION)))
@@ -15,6 +15,7 @@ PKG_LICENSE_FILES:=COPYING
 
 PKG_INSTALL:=1
 PKG_BUILD_DEPENDS:=wayland/host
+PKG_CONFIG_DEPENDS:=CONFIG_WESTON_VNC
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/meson.mk
@@ -28,10 +29,18 @@ define Package/weston
   DEPENDS:=+gstreamer1-plugins-base +libcairo +libevdev +libdisplay-info \
 	+libgst1allocators +libgst1app +libgst1video +libgstreamer1 +libinput \
 	+libmesa +libpango +libseat +libwayland +libwebp +libxkbcommon +pixman \
-	+seatd +vulkan-loader +wayland-protocols +xkeyboard-config
+	+seatd +vulkan-loader +wayland-protocols +xkeyboard-config \
+	+WESTON_VNC:libaml +WESTON_VNC:libneatvnc +WESTON_VNC:libpam
 endef
 
 define Package/weston/description
+endef
+
+define Package/weston/config
+config WESTON_VNC
+	bool "Enable authenticated TLS VNC backend"
+	depends on PACKAGE_weston
+	default n
 endef
 
 MESON_ARGS += \
@@ -40,7 +49,7 @@ MESON_ARGS += \
 	-Dbackend-headless=false \
 	-Dbackend-pipewire=false \
 	-Dbackend-rdp=false \
-	-Dbackend-vnc=false \
+	-Dbackend-vnc=$(if $(CONFIG_WESTON_VNC),true,false) \
 	-Dbackend-x11=false \
 	-Dbackend-wayland=true \
 	-Dxwayland=false \

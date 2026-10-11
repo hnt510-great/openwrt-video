@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=harfbuzz
 PKG_VERSION:=14.3.1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=https://github.com/harfbuzz/harfbuzz/releases/download/$(PKG_VERSION)/
@@ -30,13 +30,22 @@ define Package/harfbuzz
   SUBMENU:=Video
   TITLE:=hafbuzz
   URL:=http://www.harfbuzz.org/
-  DEPENDS:=+glib2 +icu +libcairo +libfreetype
+  DEPENDS:=+PACKAGE_glib2-gir:glib2-gir +glib2 +icu +libcairo +libfreetype
 endef
 
 define Package/harfbuzz/description
 endef
 
+PKG_CONFIG_DEPENDS += CONFIG_PACKAGE_glib2-gir
+ifeq ($(CONFIG_PACKAGE_glib2-gir),y)
+include $(INCLUDE_DIR)/gobject-introspection.mk
+MESON_ARGS += -Dintrospection=enabled
+endif
+
 define Build/InstallDev
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(INSTALL_DIR) $(1)/usr/share/gir-1.0 $(1)/usr/lib/girepository-1.0)
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(CP) $(PKG_INSTALL_DIR)/usr/share/gir-1.0/*.gir $(1)/usr/share/gir-1.0/)
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(CP) $(PKG_INSTALL_DIR)/usr/lib/girepository-1.0/*.typelib $(1)/usr/lib/girepository-1.0/)
 	$(INSTALL_DIR) $(1)/usr/include
 	$(CP) $(PKG_INSTALL_DIR)/usr/include/* $(1)/usr/include/
 	$(INSTALL_DIR) $(1)/usr/lib
@@ -46,6 +55,8 @@ define Build/InstallDev
 endef
 
 define Package/harfbuzz/install
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(INSTALL_DIR) $(1)/usr/lib/girepository-1.0)
+	$(if $(CONFIG_PACKAGE_glib2-gir),$(CP) $(PKG_INSTALL_DIR)/usr/lib/girepository-1.0/*.typelib $(1)/usr/lib/girepository-1.0/)
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.so* $(1)/usr/lib/
 endef
