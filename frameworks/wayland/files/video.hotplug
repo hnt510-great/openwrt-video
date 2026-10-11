@@ -1,6 +1,14 @@
 #!/bin/sh
 
-[ "$ACTION" = "add" ] && [ -n "$DEVNAME" ] && {
-	chown root:video "/dev/$DEVNAME"
-	chmod 0660 "/dev/$DEVNAME"
-}
+# Render nodes belong to accel-support's render group. Do not overwrite its
+# permissions after the device creation rules have run.
+if [ "$ACTION" = "add" ]; then
+	case "$DEVNAME" in
+	dri/card[0-9]*)
+		if [ -c "/dev/$DEVNAME" ]; then
+			chown root:video "/dev/$DEVNAME"
+			chmod 0660 "/dev/$DEVNAME"
+		fi
+		;;
+	esac
+fi
