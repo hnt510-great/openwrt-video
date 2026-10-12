@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=libepoxy
 PKG_VERSION:=1.5.10
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/anholt/libepoxy/tar.gz/$(PKG_VERSION)?
@@ -21,7 +21,7 @@ define Package/libepoxy
   SUBMENU:=Video
   TITLE:=Epoxy OpenGL function pointer management
   URL:=https://github.com/anholt/libepoxy
-  DEPENDS:=+libmesa
+  DEPENDS:=+libmesa +libX11
 endef
 
 define Package/libepoxy/description
@@ -30,9 +30,9 @@ endef
 
 MESON_ARGS += \
 	-Ddocs=false \
-	-Dglx=no \
+	-Dglx=yes \
 	-Degl=yes \
-	-Dx11=false \
+	-Dx11=true \
 	-Dtests=false
 
 define Package/libepoxy/install
