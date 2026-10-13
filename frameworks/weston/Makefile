@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=weston
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_VERSION:=16.0.0
 PKG_MAJOR_VERSION:=$(firstword $(subst .,$(space),$(PKG_VERSION)))
@@ -15,7 +15,7 @@ PKG_LICENSE_FILES:=COPYING
 
 PKG_INSTALL:=1
 PKG_BUILD_DEPENDS:=wayland/host
-PKG_CONFIG_DEPENDS:=CONFIG_WESTON_VNC
+PKG_CONFIG_DEPENDS:=CONFIG_WESTON_VNC CONFIG_WESTON_XWAYLAND
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/meson.mk
@@ -30,7 +30,8 @@ define Package/weston
 	+libgst1allocators +libgst1app +libgst1video +libgstreamer1 +libinput \
 	+libmesa +libpango +libseat +libwayland +libwebp +libxkbcommon +pixman \
 	+seatd +vulkan-loader +wayland-protocols +xkeyboard-config \
-	+WESTON_VNC:libaml +WESTON_VNC:libneatvnc +WESTON_VNC:libpam
+	+WESTON_VNC:libaml +WESTON_VNC:libneatvnc +WESTON_VNC:libpam \
+	+WESTON_XWAYLAND:xwayland +WESTON_XWAYLAND:libxcb +WESTON_XWAYLAND:libXcursor
 endef
 
 define Package/weston/description
@@ -39,6 +40,11 @@ endef
 define Package/weston/config
 config WESTON_VNC
 	bool "Enable authenticated TLS VNC backend"
+	depends on PACKAGE_weston
+	default n
+
+config WESTON_XWAYLAND
+	bool "Enable X11 applications through Xwayland"
 	depends on PACKAGE_weston
 	default n
 endef
@@ -52,7 +58,7 @@ MESON_ARGS += \
 	-Dbackend-vnc=$(if $(CONFIG_WESTON_VNC),true,false) \
 	-Dbackend-x11=false \
 	-Dbackend-wayland=true \
-	-Dxwayland=false \
+	-Dxwayland=$(if $(CONFIG_WESTON_XWAYLAND),true,false) \
 	-Dcolor-management-lcms=false \
 	-Dsystemd=false \
 	-Ddeprecated-pipewire=false \

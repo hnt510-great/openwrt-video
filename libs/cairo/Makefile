@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=cairo
 PKG_VERSION:=1.18.4
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=https://cairo.freedesktop.org/releases/
@@ -21,7 +21,7 @@ define Package/libcairo
   SUBMENU:=Video
   TITLE:=cairo
   URL:=https://cairo.freedesktop.org/
-  DEPENDS:=+libpng +libfreetype +fontconfig +libmesa +pixman +glib2 +libjpeg +zlib +liblzo +libX11 +libXext +libXrender
+  DEPENDS:=+libpng +libfreetype +fontconfig +libmesa +pixman +glib2 +libjpeg +zlib +liblzo +libX11 +libXext +libXrender +libxcb
 endef
 
 define Package/libcairo/description
@@ -33,7 +33,7 @@ MESON_ARGS += \
 	-Dfontconfig=enabled \
 	-Dfreetype=enabled \
 	-Dpng=enabled \
-	-Dxcb=disabled \
+	-Dxcb=enabled \
 	-Dxlib=enabled \
 	-Dxlib-xcb=disabled \
 	-Dzlib=enabled
