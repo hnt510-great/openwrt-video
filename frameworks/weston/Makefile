@@ -51,7 +51,9 @@ config WESTON_RDP
 
 config WESTON_XWAYLAND
 	bool "Enable X11 applications through Xwayland"
-	depends on PACKAGE_weston
+	# Xwayland's target constraints propagate back into PACKAGE_weston.
+	# Keep this option independent of the package to avoid a dependency cycle.
+	depends on TARGET_x86_64 && USE_GLIBC
 	default n
 endef
 
