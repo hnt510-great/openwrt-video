@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=weston
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 
 PKG_VERSION:=16.0.0
 PKG_MAJOR_VERSION:=$(firstword $(subst .,$(space),$(PKG_VERSION)))
