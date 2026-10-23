@@ -1,0 +1,64 @@
+Subject: [PATCH] input: retire seat globals before destroying them
+
+A VNC peer can announce and remove its private seat before clients have
+processed the registry announcement. Immediate destruction rejects their
+in-flight binds, disconnecting the desktop shell and leaving no background
+for repaint. Reuse the compositor wl_output retirement grace period, clear
+the freed seat data and permit late binds to create inert seat resources.
+
+---
+
+--- a/libweston/compositor.c
++++ b/libweston/compositor.c
+@@ -6474,7 +6474,7 @@
+ 	return 0;
+ }
+ 
+-static void
++void
+ weston_global_destroy_save(struct weston_compositor *compositor,
+ 			   struct wl_global *global)
+ {
+--- a/libweston/libweston-internal.h
++++ b/libweston/libweston-internal.h
+@@ -318,6 +318,10 @@
+ noop_renderer_init(struct weston_compositor *ec);
+ 
+ void
++weston_global_destroy_save(struct weston_compositor *compositor,
++			   struct wl_global *global);
++
++void
+ weston_compositor_add_head(struct weston_compositor *compositor,
+ 			   struct weston_head *head);
+ void
+--- a/libweston/input.c
++++ b/libweston/input.c
+@@ -3913,12 +3913,14 @@
+ 
+ 	resource = wl_resource_create(client,
+ 				      &wl_seat_interface, version, id);
+-	wl_list_insert(&seat->base_resource_list, wl_resource_get_link(resource));
++	wl_list_init(wl_resource_get_link(resource));
++	if (seat)
++		wl_list_insert(&seat->base_resource_list, wl_resource_get_link(resource));
+ 	wl_resource_set_implementation(resource, &seat_interface, data,
+ 				       unbind_resource);
+ 
+ 	if (version >= WL_SEAT_NAME_SINCE_VERSION)
+-		wl_seat_send_name(resource, seat->seat_name);
++		wl_seat_send_name(resource, seat ? seat->seat_name : "retired");
+ 
+ 	if (weston_seat_get_pointer(seat))
+ 		caps |= WL_SEAT_CAPABILITY_POINTER;
+@@ -4451,7 +4453,9 @@
+ 
+ 	free (seat->seat_name);
+ 
+-	wl_global_destroy(seat->global);
++	/* Let in-flight registry binds create inert seats, as for wl_output. */
++	wl_global_set_user_data(seat->global, NULL);
++	weston_global_destroy_save(seat->compositor, seat->global);
+ 
+ 	wl_signal_emit(&seat->destroy_signal, seat);
+ }

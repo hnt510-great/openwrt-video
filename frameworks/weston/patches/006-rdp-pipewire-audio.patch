@@ -1,0 +1,125 @@
+Subject: [PATCH] rdp: bridge authenticated peer audio through PipeWire
+
+Audio is explicitly enabled per direction in the existing RDP configuration.
+The audio implementation is supplied in files/rdpaudio.c by the recipe.
+
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -223,3 +223,5 @@
+ 	value: false,
+ 	description: 'DEPRECATED: Allow non-atomic modeset paths which will be removed soon'
+ )
++
++option('backend-rdp-audio', type: 'boolean', value: false, description: 'PipeWire RDP playback and microphone bridge')
+--- a/libweston/backend-rdp/meson.build
++++ b/libweston/backend-rdp/meson.build
+@@ -47,12 +47,21 @@
+         dep_wpr,
+         dep_libdrm_headers,
+ ]
++config_h.set10('HAVE_RDP_AUDIO', get_option('backend-rdp-audio'))
++if get_option('backend-rdp-audio')
++  deps_rdp += dependency('libpipewire-0.3', version: '>= 1.0')
++  deps_rdp += dependency('threads')
++endif
+ srcs_rdp = [
+         'rdp.c',
+         'rdpclip.c',
+         'rdpdisp.c',
+         'rdputil.c',
+ ]
++
++if get_option('backend-rdp-audio')
++  srcs_rdp += 'rdpaudio.c'
++endif
+ 
+ plugin_rdp = shared_library(
+         'rdp-backend',
+--- a/libweston/backend-rdp/rdp.c
++++ b/libweston/backend-rdp/rdp.c
+@@ -37,6 +37,9 @@
+ #include <unistd.h>
+ 
+ #include "rdp.h"
++#if HAVE_RDP_AUDIO
++#include "rdpaudio.h"
++#endif
+ 
+ #include <winpr/input.h>
+ #include <winpr/ssl.h>
+@@ -2734,5 +2737,15 @@
+ 	config_init_to_defaults(&config);
+ 	memcpy(&config, config_base, config_base->struct_size);
++#if HAVE_RDP_AUDIO
++	if (config.pipewire_playback) {
++		config.audio_out_setup = weston_rdp_audio_out_setup;
++		config.audio_out_teardown = weston_rdp_audio_teardown;
++	}
++	if (config.pipewire_capture) {
++		config.audio_in_setup = weston_rdp_audio_in_setup;
++		config.audio_in_teardown = weston_rdp_audio_teardown;
++	}
++#endif
+ 
+ 	if (!config.server_cert || !config.server_key || !config.nla_ntlm_db ||
+ 	    access(config.server_cert, R_OK) || access(config.server_key, R_OK) ||
+--- a/frontend/main.c
++++ b/frontend/main.c
+@@ -4483,6 +4483,7 @@
+ 	bool no_remotefx_codec = false;
+ 	struct wet_output_config *parsed_options = wet_init_parsed_options(c);
+ 	bool no_resizeable = false;
++	bool audio_playback = false, audio_capture = false;
+ 
+ 	if (!parsed_options)
+ 		return -1;
+@@ -4530,6 +4531,11 @@
+ 					 &config.server_key, config.server_key);
+ 	weston_config_section_get_string(section, "nla-ntlm-db",
+ 					 &config.nla_ntlm_db, config.nla_ntlm_db);
++
++	weston_config_section_get_bool(section, "audio-playback", &audio_playback, false);
++	weston_config_section_get_bool(section, "audio-capture", &audio_capture, false);
++	config.pipewire_playback = audio_playback;
++	config.pipewire_capture = audio_capture;
+ 
+ 	wb = wet_compositor_load_backend(c, WESTON_BACKEND_RDP, &config.base,
+ 					 simple_heads_changed,
+--- a/include/libweston/backend-rdp.h
++++ b/include/libweston/backend-rdp.h
+@@ -105,6 +105,8 @@
+ 	rdp_audio_out_setup audio_out_setup;
+ 	rdp_audio_out_teardown audio_out_teardown;
+ 	char *nla_ntlm_db;
++	bool pipewire_playback;
++	bool pipewire_capture;
+ };
+ 
+ #ifdef  __cplusplus
+--- a/libweston/backend-rdp/rdp.c
++++ b/libweston/backend-rdp/rdp.c
+@@ -1293,9 +1293,9 @@
+ 		}
+ 		/* Audio setup will return NULL on failure, and we'll proceed without audio */
+-		if (audio_playback)
++		if (audio_playback && !peerCtx->audio_out_private)
+ 			peerCtx->audio_out_private = b->audio_out_setup(b->compositor, peerCtx->vcm);
+ 
+-		if (audio_capture)
++		if (audio_capture && !peerCtx->audio_in_private)
+ 			peerCtx->audio_in_private = b->audio_in_setup(b->compositor, peerCtx->vcm);
+ 	}
+ 
+--- a/libweston/backend-rdp/rdp.c
++++ b/libweston/backend-rdp/rdp.c
+@@ -1031,7 +1031,9 @@
+ 
+ 	if (peerCtx && peerCtx->vcm)
+ 	{
+-		if (!WTSVirtualChannelManagerCheckFileDescriptor(peerCtx->vcm)) {
++		/* Opening drdynvc before channel join permanently disables AUDIN. */
++		if (!WTSVirtualChannelManagerCheckFileDescriptorEx(peerCtx->vcm,
++							  client->activated)) {
+ 			weston_log("failed to check FreeRDP WTS VC file descriptor for %p\n", client);
+ 			goto out_clean;
+ 		}

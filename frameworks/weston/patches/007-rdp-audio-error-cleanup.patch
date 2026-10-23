@@ -1,0 +1,14 @@
+Subject: [PATCH] rdp: clear peer audio pointers after failed activation
+
+--- a/libweston/backend-rdp/rdp.c
++++ b/libweston/backend-rdp/rdp.c
+@@ -1399,6 +1399,9 @@
+ 	if (audio_capture && peerCtx->audio_in_private)
+ 		b->audio_in_teardown(peerCtx->audio_in_private);
+ 
++	peerCtx->audio_out_private = NULL;
++	peerCtx->audio_in_private = NULL;
++
+ 	return FALSE;
+ }
+ 

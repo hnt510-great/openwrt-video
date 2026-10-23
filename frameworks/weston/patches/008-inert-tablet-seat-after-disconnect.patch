@@ -1,0 +1,39 @@
+Subject: [PATCH] input: keep tablet seat resources inert after seat removal
+
+Clients can request tablet seats after an RDP seat global has been removed.
+Match the inert-resource handling of pointer, keyboard and touch requests,
+and unlink existing tablet seat resources before freeing the seat.
+
+---
+
+--- a/libweston/input.c
++++ b/libweston/input.c
+@@ -4425,6 +4425,11 @@
+ 		wl_resource_set_user_data(resource, NULL);
+ 	}
+ 
++	wl_resource_for_each(resource, &seat->tablet_seat_resource_list) {
++		wl_resource_set_user_data(resource, NULL);
++	}
++	wl_list_remove(&seat->tablet_seat_resource_list);
++
+ 	wl_list_remove(&seat->base_resource_list);
+ 	wl_list_remove(&seat->drag_resource_list);
+ 
+@@ -4606,10 +4611,14 @@
+ 		return;
+ 	}
+ 
+-	/* store the resource in the weston_seat */
+-	wl_list_insert(&seat->tablet_seat_resource_list, wl_resource_get_link(cr));
++	/* A removed wl_seat remains valid as an inert protocol resource. */
++	wl_list_init(wl_resource_get_link(cr));
+ 	wl_resource_set_implementation(cr, &tablet_seat_interface, seat,
+ 				       unbind_resource);
++	if (!seat)
++		return;
++
++	wl_list_insert(&seat->tablet_seat_resource_list, wl_resource_get_link(cr));
+ 
+ 	/* Notify client of any tablets already connected to the system */
+ 	wl_list_for_each(tablet, &seat->tablet_list, link) {
