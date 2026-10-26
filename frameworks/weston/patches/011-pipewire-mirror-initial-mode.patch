@@ -1,0 +1,37 @@
+Subject: [PATCH] pipewire: negotiate the physical mirror mode before enable
+
+--- a/frontend/main.c
++++ b/frontend/main.c
+@@ -4308,6 +4308,8 @@
+ 	struct weston_config *wc = wet_get_config(output->compositor);
+ 	struct weston_config_section *section;
+ 	char *gbm_format = NULL;
++	char *mirror_name = NULL;
++	struct weston_output *source;
+ 	int width;
+ 	int height;
+ 	int framerate = -1;
+@@ -4328,6 +4330,23 @@
+ 
+ 	wet_output_set_scale(output, section, 1, 0);
+ 	weston_output_set_transform(output, WL_OUTPUT_TRANSFORM_NORMAL);
++
++	/* Advertise the mirror's real mode before connecting its PipeWire stream.
++	 * Changing only the renderer size after enable leaves the initial 640x480
++	 * at 30 Hz in the stream's format negotiation. */
++	weston_config_section_get_string(section, "mirror-of", &mirror_name, NULL);
++	if (mirror_name) {
++		source = weston_compositor_find_output_by_name(output->compositor,
++						    mirror_name);
++		free(mirror_name);
++		if (!source || !source->current_mode) {
++			free(gbm_format);
++			return -1;
++		}
++		width = source->current_mode->width;
++		height = source->current_mode->height;
++		framerate = (source->current_mode->refresh + 500) / 1000;
++	}
+ 
+ 	api->set_gbm_format(output, gbm_format);
+ 	free(gbm_format);

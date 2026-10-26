@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=weston
-PKG_RELEASE:=12
+PKG_RELEASE:=13
 
 PKG_VERSION:=16.0.0
 PKG_MAJOR_VERSION:=$(firstword $(subst .,$(space),$(PKG_VERSION)))
@@ -15,7 +15,7 @@ PKG_LICENSE_FILES:=COPYING
 
 PKG_INSTALL:=1
 PKG_BUILD_DEPENDS:=wayland/host
-PKG_CONFIG_DEPENDS:=CONFIG_WESTON_VNC CONFIG_WESTON_RDP CONFIG_WESTON_RDP_AUDIO CONFIG_WESTON_XWAYLAND
+PKG_CONFIG_DEPENDS:=CONFIG_WESTON_VNC CONFIG_WESTON_RDP CONFIG_WESTON_RDP_AUDIO CONFIG_WESTON_XWAYLAND CONFIG_WESTON_PIPEWIRE
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/meson.mk
@@ -31,7 +31,7 @@ define Package/weston
 	+libmesa +libpango +libseat +libwayland +libwebp +libxkbcommon +pixman \
 	+seatd +vulkan-loader +wayland-protocols +xkeyboard-config \
 	+WESTON_VNC:libaml +WESTON_VNC:libneatvnc +WESTON_VNC:libpam \
-	+WESTON_RDP:libfreerdp3 +WESTON_RDP_AUDIO:libpipewire \
+	+WESTON_RDP:libfreerdp3 +WESTON_RDP_AUDIO:libpipewire +WESTON_PIPEWIRE:libpipewire \
 	+WESTON_XWAYLAND:xwayland +WESTON_XWAYLAND:libxcb +WESTON_XWAYLAND:libXcursor
 endef
 
@@ -56,6 +56,11 @@ config WESTON_RDP_AUDIO
 	depends on OPENWRT_SYSTEMD && TARGET_x86_64 && USE_GLIBC
 	default n
 
+config WESTON_PIPEWIRE
+	bool "Enable PipeWire desktop mirror for Sunshine"
+	depends on OPENWRT_SYSTEMD && TARGET_x86_64 && USE_GLIBC
+	default n
+
 config WESTON_XWAYLAND
 	bool "Enable X11 applications through Xwayland"
 	# Xwayland's target constraints propagate back into PACKAGE_weston.
@@ -68,7 +73,7 @@ MESON_ARGS += \
 	--wrap-mode=nofallback \
 	-Dbackend-drm=true \
 	-Dbackend-headless=false \
-	-Dbackend-pipewire=false \
+	-Dbackend-pipewire=$(if $(CONFIG_WESTON_PIPEWIRE),true,false) \
 	-Dbackend-rdp=$(if $(CONFIG_WESTON_RDP),true,false) \
 	-Dbackend-rdp-audio=$(if $(CONFIG_WESTON_RDP_AUDIO),true,false) \
 	-Dbackend-vnc=$(if $(CONFIG_WESTON_VNC),true,false) \
