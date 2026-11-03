@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mesa
 PKG_VERSION:=26.2.2
-PKG_RELEASE:=6
+PKG_RELEASE:=9
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=https://archive.mesa3d.org/
@@ -140,7 +140,7 @@ define Package/libmesa-virtualization
 $(call Package/libmesa/Default)
   TITLE+= (Intel, VirtIO and software rendering)
   DEPENDS+=+accel-support +libdrm-intel +libglvnd +libX11 +libXext \
-	+libXfixes +libXxf86vm +libxcb +libxshmfence @TARGET_x86_64 @MESA_USE_LLVM
+	+libXfixes +libXrandr +libXxf86vm +libxcb +libxshmfence @TARGET_x86_64 @MESA_USE_LLVM
   VARIANT:=virtualization
 endef
 
