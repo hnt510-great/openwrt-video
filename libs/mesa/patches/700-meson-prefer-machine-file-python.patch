@@ -1,0 +1,21 @@
+From: hnt510 <hnt510@gmail.com>
+Subject: meson: prefer the machine-file python
+
+Mesa probes versioned interpreters (python3.16, python3.15, ...) before
+"python". When the build host ships a newer interpreter than the one the
+build system stages, meson picks the host one while PYTHONPATH still points
+at the staged standard library, and the code generators fail inside
+importlib. Look up "python" first so the [binaries] entry of the native or
+cross file wins; the version and mako checks below still apply to it.
+
+--- a/meson.build
++++ b/meson.build
+@@ -1090,7 +1090,7 @@ endif
+ # - On Windows, a venv has no versioned aliased to 'python'.
+ # - On RHEL 9, python3 is 3.9, so we must use python3.12.
+ python_version_req = '>= 3.10'
+-python_exec_list = ['python3.16', 'python3.15', 'python3.14', 'python3.13',
++python_exec_list = ['python', 'python3.16', 'python3.15', 'python3.14', 'python3.13',
+                     'python3.12', 'python3.11', 'python3.10', 'python3', 'python']
+ 
+ foreach p : python_exec_list
