@@ -1,5 +1,7 @@
 # OpenWrt 图形与视频 feed
 
+**简体中文** | [English](README.en.md)
+
 本仓库是 [hnt510-great/openwrt](https://github.com/hnt510-great/openwrt) 定制主树使用的私有源码 feed。
 项目面向 x86_64/glibc、APK、原生 systemd 和 GNOME 桌面；软件选择以主树
 保存的完整配置为准。
@@ -21,16 +23,13 @@
   typelib 和构建依赖声明，供主树 GTK、Python GI、GNOME 与虚拟机控制台使用。
 - **桌面应用依赖**：Wayland、字体布局、图像解码及图形相关组件；Firefox ESR
   的预编译包配方位于主树 `package/custom`，并使用这些运行时库。
-- **历史 Weston 集成**：仓库保留早期桌面、镜像输入、RDP/音频和终端等改动。
-  当前完整桌面配置已切换到 GNOME，不能把保留的 Weston 配方视作默认桌面。
 
 GNOME Shell、Mutter、桌面会话与远程访问的主要自定义配方位于主树
 `package/custom`。QEMU/SPICE 的另一部分修改位于 `packages` feed，
 libvirt/virt-manager 也依赖主树，因此应使用配套源码和配置构建。
 
 虚拟 GPU 的 VirGL 验证、物理 GPU 驱动、视频解码和远程串流分别有不同的
-验收范围。较早文档中的“无 X11/GLX”描述属于当时配置；构建选项应以当前
-Mesa 配方和主树配置为准。
+验收范围。图形构建选项以当前 Mesa 配方和主树配置为准。
 
 ## 获取与构建
 
@@ -94,7 +93,7 @@ stash 和未提交文件。主树的 `patches/feeds/` 和功能清单是历史�
 
 - [当前 GNOME 桌面](https://github.com/hnt510-great/openwrt/blob/main/docs/gnome-desktop.md)
 - [GNOME 验证范围](https://github.com/hnt510-great/openwrt/blob/main/docs/gnome-desktop-validation.md)
-- [VirtIO/SPICE 集成与历史配置](https://github.com/hnt510-great/openwrt/blob/main/docs/virt-manager.md)
+- [VirtIO/SPICE 集成](https://github.com/hnt510-great/openwrt/blob/main/docs/virt-manager.md)
 - [SPICE/VirGL 验证](https://github.com/hnt510-great/openwrt/blob/main/docs/virtio-spice-validation.md)
 - [Firefox 与 VA-API](https://github.com/hnt510-great/openwrt/blob/main/docs/firefox.md)
 - [桌面内核支持](https://github.com/hnt510-great/openwrt/blob/main/docs/desktop-kernel.md)
