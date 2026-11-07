@@ -39,6 +39,8 @@ define package/libpango/decription
 endef
 
 PKG_CONFIG_DEPENDS += CONFIG_PACKAGE_glib2-gir
+# Metadata scans ignore .config, so declare the GIR build deps conditionally.
+PKG_BUILD_DEPENDS += PACKAGE_glib2-gir:gobject-introspection/host PACKAGE_glib2-gir:gobject-introspection PACKAGE_glib2-gir:glib2-gir
 ifeq ($(CONFIG_PACKAGE_glib2-gir),y)
 include $(INCLUDE_DIR)/gobject-introspection.mk
 MESON_ARGS += -Dintrospection=enabled
