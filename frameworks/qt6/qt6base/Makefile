@@ -13,7 +13,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6base
-PKG_RELEASE:=1
+PKG_RELEASE:=5
 PKG_HASH:=c5a1a2f660356ec081febfa782998ae5ddbc5925117e64f50e4be9cd45b8dc6e
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
@@ -54,6 +54,7 @@ PKG_CONFIG_DEPENDS:= \
   CONFIG_BUILD_qt6base-gui_DRM \
   CONFIG_BUILD_qt6base-gui_OPENGL_NONE \
   CONFIG_BUILD_qt6base-gui_OPENGL_OPENGLES2 \
+  CONFIG_BUILD_qt6base-gui_QPA_DEFAULT_XCB \
   CONFIG_BUILD_qt6base-gui_QPA_DEFAULT_EGLFS \
   CONFIG_BUILD_qt6base-gui_QPA_DEFAULT_LINUXFB \
   CONFIG_BUILD_qt6base-gui_QPA_DEFAULT_VNC \
@@ -63,6 +64,10 @@ PKG_CONFIG_DEPENDS:= \
   CONFIG_BUILD_qt6base-network_SSL \
   CONFIG_PACKAGE_qt6base-gui \
   CONFIG_PACKAGE_qt6base-widgets \
+  CONFIG_PACKAGE_qt6base-dbus \
+  CONFIG_PACKAGE_qt6base-printsupport \
+  CONFIG_PACKAGE_qt6base-plugin-platforms-xcb \
+  CONFIG_PACKAGE_qt6waylandclient \
   CONFIG_PACKAGE_qt6base-plugin-platforms-linuxfb \
   CONFIG_PACKAGE_qt6base-plugin-platforms-vnc \
   CONFIG_PACKAGE_qt6base-plugin-imageformats-gif
@@ -72,12 +77,32 @@ HOST_BUILD_DEPENDS:=pcre2/host libdouble-conversion/host
 # FEATURE_libudev is forced on whenever UDEV is enabled, FEATURE_kms whenever
 # DRM is enabled. Neither is guaranteed through the DEPENDS of the selected
 # subpackages.
-PKG_BUILD_DEPENDS:=qt6base/host BUILD_qt6base-gui_UDEV:libudev-zero BUILD_qt6base-gui_DRM:libdrm
+PKG_BUILD_DEPENDS:=qt6base/host BUILD_qt6base-gui_UDEV:$(if $(CONFIG_PACKAGE_libudev-systemd),libudev-systemd,libudev-zero) BUILD_qt6base-gui_DRM:libdrm \
+	PACKAGE_qt6base-plugin-platforms-xcb:fontconfig \
+	PACKAGE_qt6base-plugin-platforms-xcb:harfbuzz \
+	PACKAGE_qt6base-plugin-platforms-xcb:libX11 \
+	PACKAGE_qt6base-plugin-platforms-xcb:libxcb \
+	PACKAGE_qt6base-plugin-platforms-xcb:libxcb-util \
+	PACKAGE_qt6base-plugin-platforms-xcb:libxcb-image \
+	PACKAGE_qt6base-plugin-platforms-xcb:libxcb-keysyms \
+	PACKAGE_qt6base-plugin-platforms-xcb:libxcb-render-util \
+	PACKAGE_qt6base-plugin-platforms-xcb:libxcb-wm \
+	PACKAGE_qt6base-plugin-platforms-xcb:libxcb-cursor \
+	PACKAGE_qt6base-plugin-platforms-xcb:libxkbcommon \
+	PACKAGE_qt6waylandclient:wayland \
+	PACKAGE_qt6waylandclient:libxkbcommon
 
 # KMS-based EGLFS integrations require both OpenGL ES and DRM
 QT6BASE_EGLFS_KMS:=$(and $(CONFIG_BUILD_qt6base-gui_OPENGL_OPENGLES2),$(CONFIG_BUILD_qt6base-gui_DRM))
 
+# The xcb platform plugin is the desktop entry point used by KF6 applications.
+# It requires fontconfig/harfbuzz for text and the xcb-util libraries Qt's
+# plugin links against.
+QT6BASE_XCB:=$(CONFIG_PACKAGE_qt6base-plugin-platforms-xcb)
+QT6BASE_XKBCOMMON:=$(or $(QT6BASE_XCB),$(CONFIG_PACKAGE_qt6waylandclient))
+
 QT6BASE_QPA_DEFAULT_PLATFORM:=$(strip \
+  $(if $(CONFIG_BUILD_qt6base-gui_QPA_DEFAULT_XCB),xcb) \
   $(if $(CONFIG_BUILD_qt6base-gui_QPA_DEFAULT_EGLFS),eglfs) \
   $(if $(CONFIG_BUILD_qt6base-gui_QPA_DEFAULT_LINUXFB),linuxfb) \
   $(if $(CONFIG_BUILD_qt6base-gui_QPA_DEFAULT_VNC),vnc) \
@@ -113,7 +138,11 @@ endef
 define Package/qt6base-gui
   $(call Package/qt6base/Default)
   TITLE+=gui
-  DEPENDS+=+qt6base-core +libpng +libfreetype +BUILD_qt6base-gui_OPENGL_OPENGLES2:libmesa
+  DEPENDS+=+qt6base-core +libpng +libfreetype \
+	$(if $(CONFIG_PACKAGE_qt6base-plugin-platforms-xcb),+fontconfig +harfbuzz +qt6base-dbus) \
+	$(if $(QT6BASE_XKBCOMMON),+libxkbcommon) \
+	$(if $(CONFIG_PACKAGE_qt6waylandclient),+libwayland) \
+	+BUILD_qt6base-gui_OPENGL_OPENGLES2:libmesa
 
 endef
 
@@ -143,6 +172,18 @@ define Package/qt6base-widgets
   DEPENDS+=+qt6base-gui
 endef
 
+define Package/qt6base-dbus
+  $(call Package/qt6base/Default)
+  TITLE+=dbus
+  DEPENDS+=+qt6base-core +libdbus
+endef
+
+define Package/qt6base-printsupport
+  $(call Package/qt6base/Default)
+  TITLE+=printsupport
+  DEPENDS+=+qt6base-core +qt6base-gui +qt6base-widgets
+endef
+
 define Package/qt6base-openglwidgets
   $(call Package/qt6base/Default)
   TITLE+=opengl widgets
@@ -162,6 +203,14 @@ define Package/qt6base-opengl
 endef
 
 #### plugins
+
+####### input methods
+
+define Package/qt6base-plugin-inputcontexts-ibus
+  $(call Package/qt6base/Default)
+  TITLE+=IBus input context (plugin)
+  DEPENDS+=+qt6base-core +qt6base-gui +qt6base-dbus
+endef
 
 ####### generic / input
 
@@ -215,6 +264,14 @@ define Package/qt6base-plugin-platforms-offscreen
   $(call Package/qt6base/Default)
   TITLE+=platform offscreen (plugin)
   DEPENDS+=+qt6base-gui
+endef
+
+define Package/qt6base-plugin-platforms-xcb
+  $(call Package/qt6base/Default)
+  TITLE+=platform xcb (plugin)
+  DEPENDS+=+qt6base-gui +fontconfig +harfbuzz +libX11 +libxcb +libxcb-util \
+	+libxcb-image +libxcb-keysyms +libxcb-render-util +libxcb-wm \
+	+libxcb-cursor +libxkbcommon +libxkbcommon-x11
 endef
 
 define Package/qt6base-plugin-platforms-linuxfb
@@ -297,8 +354,9 @@ CMAKE_OPTIONS += \
 	-DFEATURE_pkg_config=ON \
 	-DFEATURE_gui=$(if $(CONFIG_PACKAGE_qt6base-gui),ON,OFF) \
 	-DFEATURE_widgets=$(if $(CONFIG_PACKAGE_qt6base-widgets),ON,OFF) \
-	-DFEATURE_printsupport=OFF \
-	-DFEATURE_dbus=OFF \
+	-DFEATURE_printsupport=$(if $(CONFIG_PACKAGE_qt6base-printsupport),ON,OFF) \
+	-DFEATURE_dbus=$(if $(CONFIG_PACKAGE_qt6base-dbus),ON,OFF) \
+	-DINPUT_dbus=$(if $(CONFIG_PACKAGE_qt6base-dbus),runtime,no) \
 	-DFEATURE_accessibility=ON \
 	-DFEATURE_accessibility_atspi_bridge=OFF \
 	-DINPUT_doubleconversion=system \
@@ -323,10 +381,10 @@ CMAKE_OPTIONS += \
 	-DFEATURE_system_proxies=ON \
 	-DFEATURE_cups=OFF \
 	-DFEATURE_emojisegmenter=OFF \
-	-DFEATURE_fontconfig=OFF \
+	-DFEATURE_fontconfig=$(if $(QT6BASE_XCB),ON,OFF) \
 	-DINPUT_freetype=system \
-	-DFEATURE_harfbuzz=OFF \
-	-DFEATURE_system_harfbuzz=OFF \
+	-DFEATURE_harfbuzz=$(if $(QT6BASE_XCB),ON,OFF) \
+	-DFEATURE_system_harfbuzz=$(if $(QT6BASE_XCB),ON,OFF) \
 	-DFEATURE_system_textmarkdownreader=OFF \
 	-DFEATURE_gtk3=OFF \
 	-DINPUT_opengl=$(if $(CONFIG_BUILD_qt6base-gui_OPENGL_OPENGLES2),es2,no) \
@@ -345,18 +403,18 @@ CMAKE_OPTIONS += \
 	-DFEATURE_drm_atomic=$(if $(CONFIG_BUILD_qt6base-gui_DRM),ON,OFF) \
 	-DFEATURE_linuxfb=$(if $(CONFIG_PACKAGE_qt6base-plugin-platforms-linuxfb),ON,OFF) \
 	-DFEATURE_vnc=$(if $(CONFIG_PACKAGE_qt6base-plugin-platforms-vnc),ON,OFF) \
-	-DFEATURE_wayland=OFF \
-	-DFEATURE_xcb=OFF \
+	-DFEATURE_wayland=$(if $(CONFIG_PACKAGE_qt6waylandclient),ON,OFF) \
+	-DFEATURE_xcb=$(if $(QT6BASE_XCB),ON,OFF) \
+	-DFEATURE_xkbcommon=$(if $(QT6BASE_XKBCOMMON),ON,OFF) \
+	-DFEATURE_xkbcommon_x11=$(if $(QT6BASE_XCB),ON,OFF) \
+	-DFEATURE_xlib=$(if $(QT6BASE_XCB),ON,OFF) \
+	-DFEATURE_xcb_xlib=$(if $(QT6BASE_XCB),ON,OFF) \
 	-DFEATURE_libudev=$(if $(CONFIG_BUILD_qt6base-gui_UDEV),ON,OFF) \
 	-DFEATURE_evdev=ON \
 	-DFEATURE_tuiotouch=OFF \
 	-DFEATURE_libinput=OFF \
 	-DFEATURE_mtdev=OFF \
 	-DFEATURE_tslib=OFF \
-	-DFEATURE_xkbcommon=OFF \
-	-DFEATURE_xkbcommon_x11=OFF \
-	-DFEATURE_xlib=OFF \
-	-DFEATURE_xcb_xlib=OFF \
 	-DFEATURE_gif=$(if $(CONFIG_PACKAGE_qt6base-plugin-imageformats-gif),ON,OFF) \
 	-DFEATURE_ico=OFF \
 	-DINPUT_libpng=system \
@@ -414,9 +472,10 @@ CMAKE_HOST_OPTIONS += \
 	-DINPUT_linker=bfd \
 	-DFEATURE_pkg_config=ON \
 	-DFEATURE_gui=ON \
-	-DFEATURE_widgets=OFF \
+	-DFEATURE_widgets=ON \
 	-DFEATURE_printsupport=OFF \
-	-DFEATURE_dbus=OFF \
+	-DFEATURE_dbus=ON \
+	-DINPUT_dbus=runtime \
 	-DFEATURE_accessibility=OFF \
 	-DFEATURE_accessibility_atspi_bridge=OFF \
 	-DINPUT_doubleconversion=system \
@@ -544,6 +603,14 @@ define Package/qt6base-widgets/install
 	$(call Build/Install/Libs,$(1),libQt6Widgets)
 endef
 
+define Package/qt6base-dbus/install
+	$(call Build/Install/Libs,$(1),libQt6DBus)
+endef
+
+define Package/qt6base-printsupport/install
+	$(call Build/Install/Libs,$(1),libQt6PrintSupport)
+endef
+
 define Package/qt6base-openglwidgets/install
 	$(call Build/Install/Libs,$(1),libQt6OpenGLWidgets)
 endef
@@ -563,6 +630,10 @@ define Package/qt6base-plugin-platforms-eglfs/install
 	$(if $(QT6BASE_EGLFS_KMS),$(call Build/Install/Libs,$(1),libQt6EglFsKmsGbmSupport))
 	$(if $(QT6BASE_EGLFS_KMS),$(call Build/Install/Plugins,$(1),egldeviceintegrations,libqeglfs-kms-egldevice-integration))
 	$(if $(QT6BASE_EGLFS_KMS),$(call Build/Install/Plugins,$(1),egldeviceintegrations,libqeglfs-kms-integration))
+endef
+
+define Package/qt6base-plugin-inputcontexts-ibus/install
+	$(call Build/Install/Plugins,$(1),platforminputcontexts,libibusplatforminputcontextplugin)
 endef
 
 define Package/qt6base-plugin-input-evdevkeyboard/install
@@ -601,6 +672,11 @@ define Package/qt6base-plugin-platforms-offscreen/install
 	$(call Build/Install/Plugins,$(1),platforms,libqoffscreen)
 endef
 
+define Package/qt6base-plugin-platforms-xcb/install
+	$(call Build/Install/Libs,$(1),libQt6XcbQpa)
+	$(call Build/Install/Plugins,$(1),platforms,libqxcb)
+endef
+
 define Package/qt6base-plugin-platforms-vnc/install
 	$(call Build/Install/Plugins,$(1),platforms,libqvnc)
 endef
@@ -613,8 +689,11 @@ $(eval $(call BuildPackage,qt6base-opengl))
 $(eval $(call BuildPackage,qt6base-network))
 $(eval $(call BuildPackage,qt6base-test))
 $(eval $(call BuildPackage,qt6base-widgets))
+$(eval $(call BuildPackage,qt6base-dbus))
+$(eval $(call BuildPackage,qt6base-printsupport))
 $(eval $(call BuildPackage,qt6base-openglwidgets))
 $(eval $(call BuildPackage,qt6base-xml))
+$(eval $(call BuildPackage,qt6base-plugin-inputcontexts-ibus))
 $(eval $(call BuildPackage,qt6base-plugin-input-evdevkeyboard))
 $(eval $(call BuildPackage,qt6base-plugin-input-evdevmouse))
 $(eval $(call BuildPackage,qt6base-plugin-input-evdevtablet))
@@ -624,6 +703,7 @@ $(eval $(call BuildPackage,qt6base-plugin-imageformats-jpeg))
 $(eval $(call BuildPackage,qt6base-plugin-platforms-minimal))
 $(eval $(call BuildPackage,qt6base-plugin-platforms-linuxfb))
 $(eval $(call BuildPackage,qt6base-plugin-platforms-offscreen))
+$(eval $(call BuildPackage,qt6base-plugin-platforms-xcb))
 $(eval $(call BuildPackage,qt6base-plugin-platforms-vnc))
 $(eval $(call BuildPackage,qt6base-plugin-platforms-eglfs))
 $(eval $(call HostBuild))

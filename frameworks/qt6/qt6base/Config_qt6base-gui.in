@@ -35,6 +35,7 @@ endchoice
 
 choice
     prompt "Default platform plugin"
+    default BUILD_qt6base-gui_QPA_DEFAULT_XCB if PACKAGE_qt6base-plugin-platforms-xcb
     default BUILD_qt6base-gui_QPA_DEFAULT_EGLFS if PACKAGE_qt6base-plugin-platforms-eglfs
     default BUILD_qt6base-gui_QPA_DEFAULT_LINUXFB if PACKAGE_qt6base-plugin-platforms-linuxfb
     default BUILD_qt6base-gui_QPA_DEFAULT_VNC if PACKAGE_qt6base-plugin-platforms-vnc
@@ -43,6 +44,10 @@ choice
     help
         Platform plugin compiled into Qt6Gui as the default, used when
         neither QT_QPA_PLATFORM nor -platform select one at runtime.
+
+config BUILD_qt6base-gui_QPA_DEFAULT_XCB
+    bool "xcb"
+    depends on PACKAGE_qt6base-plugin-platforms-xcb
 
 config BUILD_qt6base-gui_QPA_DEFAULT_EGLFS
     bool "eglfs"

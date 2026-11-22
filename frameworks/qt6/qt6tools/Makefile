@@ -70,11 +70,12 @@ CMAKE_OPTIONS += \
 	-DCMAKE_DISABLE_FIND_PACKAGE_Qt6Qml=ON
 
 # lupdate uses Qt QML to extract translatable strings from QML and JavaScript
-# files. Qt Network is needed, as the host's Qt QML depends on it.
+# files. Qt Network is needed, as the host's Qt QML depends on it. kmap2qmap is
+# not built: it is the only tool that needs Qt's private input support, and KF6
+# only needs lrelease from this host build.
 CMAKE_HOST_OPTIONS += \
 	$(QT6TOOLS_OPTIONS) \
-	-DFEATURE_kmap2qmap=ON \
-	-DCMAKE_REQUIRE_FIND_PACKAGE_Qt6InputSupportPrivate=ON \
+	-DFEATURE_kmap2qmap=OFF \
 	-DCMAKE_REQUIRE_FIND_PACKAGE_Qt6Network=ON \
 	-DCMAKE_REQUIRE_FIND_PACKAGE_Qt6Qml=ON
 
