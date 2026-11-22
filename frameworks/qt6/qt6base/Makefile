@@ -681,6 +681,61 @@ define Package/qt6base-plugin-platforms-vnc/install
 	$(call Build/Install/Plugins,$(1),platforms,libqvnc)
 endef
 
+
+define Package/qt6base-dev
+  $(call Package/qt6base/Default)
+  SECTION:=devel
+  CATEGORY:=Development
+  SUBMENU:=Libraries
+  TITLE+=development files
+  DEPENDS:=+qt6base-core +qt6base-gui +qt6base-widgets +qt6base-network \
+	+qt6base-dbus +qt6base-xml +qt6base-printsupport \
+	+qt6base-plugin-platforms-xcb +native-libs-dev +gcc +cmake-bin
+endef
+
+define Package/qt6base-dev/install
+	$(INSTALL_DIR) $(1)/usr/include/qt6 $(1)/usr/lib/cmake $(1)/usr/lib/pkgconfig \
+		$(1)/usr/lib/qt6/mkspecs $(1)/usr/lib/qt6/libexec $(1)/usr/bin/qt6
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/qt6/. $(1)/usr/include/qt6/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/cmake/. $(1)/usr/lib/cmake/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/Qt6*.pc $(1)/usr/lib/pkgconfig/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/qt6/mkspecs/. $(1)/usr/lib/qt6/mkspecs/
+	$(CP) $(STAGING_DIR_HOSTPKG)/lib/qt6/mkspecs/linux-openwrt-host-g++ \
+		$(1)/usr/lib/qt6/mkspecs/
+	# Host-built command line tools run against the target Qt libraries.
+	for tool in moc uic rcc syncqt tracepointgen tracegen cmake_automoc_parser \
+		qlalr qvkgen; do \
+		[ ! -f $(STAGING_DIR_HOSTPKG)/lib/qt6/libexec/$$$$tool ] || \
+			$(INSTALL_BIN) $(STAGING_DIR_HOSTPKG)/lib/qt6/libexec/$$$$tool \
+				$(1)/usr/lib/qt6/libexec/; \
+	done
+	for tool in qmake6 qtpaths6 qdbuscpp2xml qdbusxml2cpp; do \
+		[ ! -f $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool ] || \
+			$(INSTALL_BIN) $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool $(1)/usr/bin/qt6/; \
+	done
+	$(LN) qmake6 $(1)/usr/bin/qt6/qmake
+	$(LN) qtpaths6 $(1)/usr/bin/qt6/qtpaths
+	$(INSTALL_DATA) ./files/qt.conf $(1)/usr/bin/qt6/qt.conf
+	$(INSTALL_BIN) ./files/qt-cmake $(1)/usr/bin/qt-cmake
+	$(LN) qt6/qmake6 $(1)/usr/bin/qmake6
+	$(LN) qt6/qmake6 $(1)/usr/bin/qmake
+	$(LN) qt6/qtpaths6 $(1)/usr/bin/qtpaths6
+	for tool in moc uic rcc; do $(LN) ../lib/qt6/libexec/$$$$tool $(1)/usr/bin/$$$$tool; done
+	# Plugin CMake targets describe every plugin built for the target. The
+	# runtime packages install only a subset, so keep their CMake packages out
+	# of the on-device tree; Qt loads plugins by path at runtime.
+	rm -rf $(1)/usr/lib/cmake/Qt6*/Qt6Q*Plugin*
+	rm -f $(1)/usr/lib/cmake/Qt6Gui/Qt6GuiPlugins.cmake
+	# The target CMake files embed the cross-build host prefix. On the device
+	# the host tools live under the same /usr prefix.
+	for m in Tools CoreTools GuiTools WidgetsTools DBusTools; do \
+		[ ! -d $(STAGING_DIR_HOSTPKG)/lib/cmake/Qt6$$$$m ] || \
+			$(CP) $(STAGING_DIR_HOSTPKG)/lib/cmake/Qt6$$$$m $(1)/usr/lib/cmake/; \
+	done
+	find $(1)/usr/lib/cmake -type f -name '*.cmake' -exec \
+		sed -i 's|$(STAGING_DIR_HOSTPKG)|/usr|g' {} +
+endef
+
 # $(eval $(call BuildPackage,qt6base))
 $(eval $(call BuildPackage,qt6base-concurrent))
 $(eval $(call BuildPackage,qt6base-core))
@@ -693,6 +748,7 @@ $(eval $(call BuildPackage,qt6base-dbus))
 $(eval $(call BuildPackage,qt6base-printsupport))
 $(eval $(call BuildPackage,qt6base-openglwidgets))
 $(eval $(call BuildPackage,qt6base-xml))
+$(eval $(call BuildPackage,qt6base-dev))
 $(eval $(call BuildPackage,qt6base-plugin-inputcontexts-ibus))
 $(eval $(call BuildPackage,qt6base-plugin-input-evdevkeyboard))
 $(eval $(call BuildPackage,qt6base-plugin-input-evdevmouse))
