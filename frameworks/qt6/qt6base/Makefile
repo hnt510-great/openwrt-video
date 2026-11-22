@@ -13,7 +13,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6base
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 PKG_HASH:=c5a1a2f660356ec081febfa782998ae5ddbc5925117e64f50e4be9cd45b8dc6e
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
