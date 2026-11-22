@@ -83,9 +83,24 @@ define Package/qt6tools
   SECTION:=video-frameworks
   CATEGORY:=Video
   SUBMENU:=Frameworks and Toolkits
-  TITLE:=Qt6Tools
+  TITLE:=Qt6 Linguist tools
   URL:=https://www.qt.io
-  BUILDONLY:=1
+  DEPENDS:=+qt6base-core +qt6quick-qml +libstdcpp
+endef
+
+define Package/qt6tools/install
+	$(INSTALL_DIR) $(1)/usr/bin/qt6
+	# The Linguist tools are host builds, like moc and uic in qt6base-dev.
+	# x86_64 host and target share the ABI, and the binaries resolve the
+	# target Qt libraries through their RUNPATH. Designer and Linguist (the
+	# GUI applications) remain disabled in this build.
+	for tool in lupdate lrelease lconvert; do \
+		[ ! -x $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool ] || { \
+			$(INSTALL_BIN) $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool \
+				$(1)/usr/bin/qt6/; \
+			$(LN) qt6/$$$$tool $(1)/usr/bin/$$$$tool; \
+		}; \
+	done
 endef
 
 # The target build is still needed: it installs the CMake packages through

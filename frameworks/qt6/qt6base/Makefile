@@ -51,6 +51,7 @@ include ../cmake.mk
 PKG_CONFIG_DEPENDS:= \
   CONFIG_BUILD_qt6base-core_ICU \
   CONFIG_BUILD_qt6base-core_INOTIFY \
+  CONFIG_BUILD_qt6base_SQL \
   CONFIG_BUILD_qt6base-gui_DRM \
   CONFIG_BUILD_qt6base-gui_OPENGL_NONE \
   CONFIG_BUILD_qt6base-gui_OPENGL_OPENGLES2 \
@@ -78,6 +79,7 @@ HOST_BUILD_DEPENDS:=pcre2/host libdouble-conversion/host
 # DRM is enabled. Neither is guaranteed through the DEPENDS of the selected
 # subpackages.
 PKG_BUILD_DEPENDS:=qt6base/host BUILD_qt6base-gui_UDEV:$(if $(CONFIG_PACKAGE_libudev-systemd),libudev-systemd,libudev-zero) BUILD_qt6base-gui_DRM:libdrm \
+	BUILD_qt6base-gui_OPENGL_OPENGLES2:mesa \
 	PACKAGE_qt6base-plugin-platforms-xcb:fontconfig \
 	PACKAGE_qt6base-plugin-platforms-xcb:harfbuzz \
 	PACKAGE_qt6base-plugin-platforms-xcb:libX11 \
@@ -200,6 +202,18 @@ define Package/qt6base-opengl
   $(call Package/qt6base/Default)
   TITLE+=opengl
   DEPENDS+=+qt6base-gui +libmesa @BUILD_qt6base-gui_OPENGL_OPENGLES2
+endef
+
+define Package/qt6base-sql
+  $(call Package/qt6base/Default)
+  TITLE+=sql
+  DEPENDS+=+qt6base-core @BUILD_qt6base_SQL
+endef
+
+define Package/qt6base-plugin-sqldrivers-sqlite
+  $(call Package/qt6base/Default)
+  TITLE+=SQLite SQL driver
+  DEPENDS+=+qt6base-sql @BUILD_qt6base_SQL
 endef
 
 #### plugins
@@ -419,8 +433,9 @@ CMAKE_OPTIONS += \
 	-DFEATURE_ico=OFF \
 	-DINPUT_libpng=system \
 	-DINPUT_libjpeg=system \
-	-DFEATURE_sql=OFF \
-	-DFEATURE_sqlmodel=OFF
+	-DFEATURE_sql=$(if $(CONFIG_BUILD_qt6base_SQL),ON,OFF) \
+	-DFEATURE_sqlmodel=$(if $(CONFIG_BUILD_qt6base_SQL),ON,OFF) \
+	-DFEATURE_sql_sqlite=$(if $(CONFIG_BUILD_qt6base_SQL),ON,OFF)
 
 
 # BUILD_SHARED_LIBS=ON (set in ../cmake.mk) is needed for the host build:
@@ -623,6 +638,14 @@ define Package/qt6base-opengl/install
 	$(call Build/Install/Libs,$(1),libQt6OpenGL)
 endef
 
+define Package/qt6base-sql/install
+	$(call Build/Install/Libs,$(1),libQt6Sql)
+endef
+
+define Package/qt6base-plugin-sqldrivers-sqlite/install
+	$(call Build/Install/Plugins,$(1),sqldrivers,libqsqlite)
+endef
+
 define Package/qt6base-plugin-platforms-eglfs/install
 	$(call Build/Install/Libs,$(1),libQt6EglFSDeviceIntegration)
 	$(call Build/Install/Plugins,$(1),platforms,libqeglfs)
@@ -690,16 +713,22 @@ define Package/qt6base-dev
   TITLE+=development files
   DEPENDS:=+qt6base-core +qt6base-gui +qt6base-widgets +qt6base-network \
 	+qt6base-dbus +qt6base-xml +qt6base-printsupport \
-	+qt6base-plugin-platforms-xcb +native-libs-dev +gcc +cmake-bin
+	+qt6base-plugin-platforms-xcb +native-libs-dev +gcc +cmake-bin \
+	+BUILD_qt6base_SQL:qt6base-sql \
+	+BUILD_qt6base_SQL:qt6base-plugin-sqldrivers-sqlite \
+	+BUILD_qt6base-gui_OPENGL_OPENGLES2:qt6base-opengl \
+	+BUILD_qt6base-gui_OPENGL_OPENGLES2:qt6base-openglwidgets
 endef
 
 define Package/qt6base-dev/install
 	$(INSTALL_DIR) $(1)/usr/include/qt6 $(1)/usr/lib/cmake $(1)/usr/lib/pkgconfig \
-		$(1)/usr/lib/qt6/mkspecs $(1)/usr/lib/qt6/libexec $(1)/usr/bin/qt6
+		$(1)/usr/lib/qt6/mkspecs $(1)/usr/lib/qt6/libexec \
+		$(1)/usr/lib/qt6/metatypes $(1)/usr/bin/qt6
 	$(CP) $(PKG_INSTALL_DIR)/usr/include/qt6/. $(1)/usr/include/qt6/
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/cmake/. $(1)/usr/lib/cmake/
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/Qt6*.pc $(1)/usr/lib/pkgconfig/
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/qt6/mkspecs/. $(1)/usr/lib/qt6/mkspecs/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/qt6/metatypes/. $(1)/usr/lib/qt6/metatypes/
 	$(CP) $(STAGING_DIR_HOSTPKG)/lib/qt6/mkspecs/linux-openwrt-host-g++ \
 		$(1)/usr/lib/qt6/mkspecs/
 	# Host-built command line tools run against the target Qt libraries.
@@ -741,6 +770,8 @@ $(eval $(call BuildPackage,qt6base-concurrent))
 $(eval $(call BuildPackage,qt6base-core))
 $(eval $(call BuildPackage,qt6base-gui))
 $(eval $(call BuildPackage,qt6base-opengl))
+$(eval $(call BuildPackage,qt6base-sql))
+$(eval $(call BuildPackage,qt6base-plugin-sqldrivers-sqlite))
 $(eval $(call BuildPackage,qt6base-network))
 $(eval $(call BuildPackage,qt6base-test))
 $(eval $(call BuildPackage,qt6base-widgets))
