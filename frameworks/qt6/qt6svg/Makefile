@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6svg
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_HASH:=db76aa3358cbbe6fce7da576ff4669cb9801920188c750d3b12783bbe97026e2
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
@@ -60,6 +60,12 @@ define Package/qt6svg-widgets
   DEPENDS+=+qt6svg +qt6base-widgets
 endef
 
+define Package/qt6svg-dev
+  $(call Package/qt6svg/Default)
+  TITLE+=development files
+  DEPENDS:=+qt6base-dev +qt6svg +PACKAGE_qt6svg-widgets:qt6svg-widgets
+endef
+
 Build/InstallDev = $(Build/InstallDev/Qt)
 
 define Package/qt6svg/install
@@ -72,6 +78,18 @@ define Package/qt6svg-widgets/install
 	$(call Build/Install/Libs,$(1),libQt6SvgWidgets)
 endef
 
+define Package/qt6svg-dev/install
+	$(INSTALL_DIR) $(1)/usr/include/qt6 $(1)/usr/lib/cmake \
+		$(1)/usr/lib/pkgconfig $(1)/usr/lib/qt6/metatypes
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/qt6/. $(1)/usr/include/qt6/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/cmake/Qt6Svg* $(1)/usr/lib/cmake/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/Qt6Svg*.pc \
+		$(1)/usr/lib/pkgconfig/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/qt6/metatypes/. \
+		$(1)/usr/lib/qt6/metatypes/
+endef
+
 $(eval $(call BuildPackage,qt6svg))
 $(eval $(call BuildPackage,qt6svg-widgets))
+$(eval $(call BuildPackage,qt6svg-dev))
 $(eval $(call HostBuild))

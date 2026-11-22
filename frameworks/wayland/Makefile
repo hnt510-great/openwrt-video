@@ -68,6 +68,8 @@ define Build/InstallDev
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/lib*.so* $(1)/usr/lib/
 	$(INSTALL_DIR) $(1)/usr/lib/pkgconfig
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/*.pc $(1)/usr/lib/pkgconfig
+	$(INSTALL_DIR) $(1)/usr/share/wayland
+	$(CP) $(PKG_INSTALL_DIR)/usr/share/wayland/wayland.xml $(1)/usr/share/wayland/
 	$(SED) 's/^wayland_scanner=$$$${bindir}\/\(.*\)/wayland_scanner=$$$${prefix_hostpkg}\/bin\/\1/' $(1)/usr/lib/pkgconfig/wayland-scanner.pc
 endef
 

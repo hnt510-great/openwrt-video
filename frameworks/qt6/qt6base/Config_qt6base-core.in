@@ -10,3 +10,11 @@ config BUILD_qt6base-core_ICU
     bool "Compile with ICU internationalization support"
     depends on PACKAGE_qt6base-core
     default y
+
+config BUILD_qt6base_SQL
+    bool "Build the SQL module with the SQLite driver"
+    default n
+    help
+        Builds QtSql and its SQLite driver plugin. The
+        qt6base-sql and qt6base-plugin-sqldrivers-sqlite packages install
+        the library and driver.

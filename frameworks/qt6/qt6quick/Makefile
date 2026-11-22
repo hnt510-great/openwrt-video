@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6declarative
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_HASH:=5a071b227229afbf5c976b7b59a0d850818d06ae861fcdf6d690351ca3f8a260
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
@@ -276,6 +276,28 @@ define Package/qt6quick-widgets
   $(call Package/qt6quick-lib/Default)
   TITLE+=widgets
   DEPENDS+=+qt6quick +qt6base-widgets
+endef
+
+define Package/qt6quick-tools
+  $(call Package/qt6quick/Default)
+  TITLE+=QML runtime and development tools
+  DEPENDS+=+qt6quick +qt6quick-qml +qt6quick-qml-meta +qt6quick-qml-models \
+	+qt6quick-qml-workerscript +qt6quick-test +qt6quick-effects \
+	+qt6quick-qml-mod-qtqml +qt6quick-qml-mod-qtquick \
+	+qt6quick-qml-mod-qttest +qt6base-gui +qt6base-network \
+	+qt6base-widgets +qt6base-test \
+	+PACKAGE_qt6base-plugin-platforms-xcb:qt6base-plugin-platforms-xcb \
+	+PACKAGE_qt6base-plugin-platforms-offscreen:qt6base-plugin-platforms-offscreen \
+	+PACKAGE_qt6base-plugin-platforms-minimal:qt6base-plugin-platforms-minimal
+endef
+
+define Package/qt6quick-dev
+  $(call Package/qt6quick/Default)
+  TITLE+=development files
+  DEPENDS:=+qt6base-dev +qt6quick-tools +qt6quick +qt6quick-qml \
+	+qt6quick-qml-meta +qt6quick-controls2 +qt6quick-templates2 \
+	+qt6quick-layouts +qt6quick-shapes +qt6quick-effects \
+	+qt6quick-widgets +qt6quick-test
 endef
 
 ###
@@ -571,6 +593,63 @@ define Package/qt6quick-widgets/install
 	$(call Build/Install/Libs,$(1),libQt6QuickWidgets)
 endef
 
+define Package/qt6quick-tools/install
+	$(INSTALL_DIR) $(1)/usr/bin/qt6 $(1)/usr/lib \
+		$(1)/usr/lib/qt6/libexec
+	# qml, qmlscene and qmltestrunner are target binaries built with the
+	# module. qmllint and the other tooling binaries are host builds, like
+	# moc and uic in qt6base-dev; x86_64 host and target share the ABI, and
+	# the tools resolve the target Qt libraries through their RUNPATH.
+	for tool in qml qmlscene qmltestrunner qmleasing; do \
+		[ ! -x $(PKG_INSTALL_DIR)/$(QT_INSTALL_BINS)/$$$$tool ] || { \
+			$(INSTALL_BIN) $(PKG_INSTALL_DIR)/$(QT_INSTALL_BINS)/$$$$tool \
+				$(1)/usr/bin/qt6/; \
+			$(LN) qt6/$$$$tool $(1)/usr/bin/$$$$tool; \
+		}; \
+	done
+	for tool in qmllint qmlformat qmldom qmltc qmlplugindump \
+		qmlprofiler qmltime; do \
+		[ ! -x $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool ] || { \
+			$(INSTALL_BIN) $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool \
+				$(1)/usr/bin/qt6/; \
+			$(LN) qt6/$$$$tool $(1)/usr/bin/$$$$tool; \
+		}; \
+	done
+	# Build-time helpers referenced by Qt6QmlTools; CMake calls them by path.
+	for tool in qmlaotstats qmlcachegen qmlimportscanner qmljsrootgen \
+		qmltyperegistrar; do \
+		[ ! -x $(STAGING_DIR_HOSTPKG)/lib/qt6/libexec/$$$$tool ] || \
+			$(INSTALL_BIN) $(STAGING_DIR_HOSTPKG)/lib/qt6/libexec/$$$$tool \
+				$(1)/usr/lib/qt6/libexec/; \
+	done
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libQt6QmlCompiler.so.* $(1)/usr/lib/
+endef
+
+define Package/qt6quick-dev/install
+	$(INSTALL_DIR) $(1)/usr/include/qt6 $(1)/usr/lib/cmake \
+		$(1)/usr/lib/pkgconfig $(1)/usr/lib/qt6/metatypes
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/qt6/. $(1)/usr/include/qt6/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/cmake/Qt6Qml* \
+		$(PKG_INSTALL_DIR)/usr/lib/cmake/Qt6Quick* \
+		$(PKG_INSTALL_DIR)/usr/lib/cmake/Qt6Labs* $(1)/usr/lib/cmake/
+	# Qt6QmlConfig requires the host tools package; its imported paths are
+	# relative to the /usr prefix, so it can be copied unchanged.
+	$(CP) $(STAGING_DIR_HOSTPKG)/lib/cmake/Qt6QmlTools $(1)/usr/lib/cmake/
+	[ ! -d $(PKG_INSTALL_DIR)/usr/lib/qt6/metatypes ] || \
+		$(CP) $(PKG_INSTALL_DIR)/usr/lib/qt6/metatypes/. \
+			$(1)/usr/lib/qt6/metatypes/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/Qt6Qml*.pc \
+		$(PKG_INSTALL_DIR)/usr/lib/pkgconfig/Qt6Quick*.pc \
+		$(PKG_INSTALL_DIR)/usr/lib/pkgconfig/Qt6Labs*.pc \
+		$(1)/usr/lib/pkgconfig/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.a $(1)/usr/lib/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.prl $(1)/usr/lib/
+	# Plugin CMake targets describe every QML plugin built for the target.
+	# Runtime packages install only a subset, so keep them out of the
+	# on-device tree; Qt loads QML modules by path at runtime.
+	find $(1)/usr/lib/cmake -type d -name QmlPlugins -exec rm -rf {} +
+endef
+
 ### libQt6Qml*.so*
 
 define Package/qt6quick-qml/install
@@ -760,6 +839,8 @@ $(eval $(call BuildPackage,qt6quick-shapes))
 $(eval $(call BuildPackage,qt6quick-templates2))
 $(eval $(call BuildPackage,qt6quick-test))
 $(eval $(call BuildPackage,qt6quick-widgets))
+$(eval $(call BuildPackage,qt6quick-tools))
+$(eval $(call BuildPackage,qt6quick-dev))
 
 $(eval $(call BuildPackage,qt6quick-qml))
 $(eval $(call BuildPackage,qt6quick-qml-core))

@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6tools
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_HASH:=0cf7ab0e975fc57f5ce1375576a0a76e9ede25e6b01db3cf2339cd4d9750b4e9
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
@@ -70,11 +70,12 @@ CMAKE_OPTIONS += \
 	-DCMAKE_DISABLE_FIND_PACKAGE_Qt6Qml=ON
 
 # lupdate uses Qt QML to extract translatable strings from QML and JavaScript
-# files. Qt Network is needed, as the host's Qt QML depends on it.
+# files. Qt Network is needed, as the host's Qt QML depends on it. kmap2qmap is
+# not built: it is the only tool that needs Qt's private input support, and KF6
+# only needs lrelease from this host build.
 CMAKE_HOST_OPTIONS += \
 	$(QT6TOOLS_OPTIONS) \
-	-DFEATURE_kmap2qmap=ON \
-	-DCMAKE_REQUIRE_FIND_PACKAGE_Qt6InputSupportPrivate=ON \
+	-DFEATURE_kmap2qmap=OFF \
 	-DCMAKE_REQUIRE_FIND_PACKAGE_Qt6Network=ON \
 	-DCMAKE_REQUIRE_FIND_PACKAGE_Qt6Qml=ON
 
@@ -82,9 +83,24 @@ define Package/qt6tools
   SECTION:=video-frameworks
   CATEGORY:=Video
   SUBMENU:=Frameworks and Toolkits
-  TITLE:=Qt6Tools
+  TITLE:=Qt6 Linguist tools
   URL:=https://www.qt.io
-  BUILDONLY:=1
+  DEPENDS:=+qt6base-core +qt6quick-qml +libstdcpp
+endef
+
+define Package/qt6tools/install
+	$(INSTALL_DIR) $(1)/usr/bin/qt6
+	# The Linguist tools are host builds, like moc and uic in qt6base-dev.
+	# x86_64 host and target share the ABI, and the binaries resolve the
+	# target Qt libraries through their RUNPATH. Designer and Linguist (the
+	# GUI applications) remain disabled in this build.
+	for tool in lupdate lrelease lconvert; do \
+		[ ! -x $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool ] || { \
+			$(INSTALL_BIN) $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool \
+				$(1)/usr/bin/qt6/; \
+			$(LN) qt6/$$$$tool $(1)/usr/bin/$$$$tool; \
+		}; \
+	done
 endef
 
 # The target build is still needed: it installs the CMake packages through
