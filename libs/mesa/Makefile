@@ -144,7 +144,7 @@ define Package/libmesa-virtualization
 $(call Package/libmesa/Default,$(1))
   TITLE+= (Intel, VirtIO and software rendering)
   DEPENDS+=+accel-support +libdisplay-info +libdrm-intel +libexpat +libglvnd +libudev \
-	+libX11 +libXext +libXfixes +libXrandr +libXxf86vm +libxcb +libxshmfence \
+	+libX11 +libXext +libXfixes +libXrandr +libXxf86vm +libxcb +libxcb-keysyms +libxshmfence \
 	@TARGET_x86_64 @MESA_USE_LLVM
   VARIANT:=virtualization
 endef

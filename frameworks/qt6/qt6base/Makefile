@@ -78,7 +78,7 @@ HOST_BUILD_DEPENDS:=pcre2/host libdouble-conversion/host
 # FEATURE_libudev is forced on whenever UDEV is enabled, FEATURE_kms whenever
 # DRM is enabled. Neither is guaranteed through the DEPENDS of the selected
 # subpackages.
-PKG_BUILD_DEPENDS:=qt6base/host BUILD_qt6base-gui_UDEV:$(if $(CONFIG_PACKAGE_libudev-systemd),libudev-systemd,libudev-zero) BUILD_qt6base-gui_DRM:libdrm \
+PKG_BUILD_DEPENDS:=qt6base/host BUILD_qt6base-gui_UDEV&&PACKAGE_libudev-systemd:systemd BUILD_qt6base-gui_UDEV&&PACKAGE_libudev-zero:libudev-zero BUILD_qt6base-gui_DRM:libdrm \
 	BUILD_qt6base-gui_OPENGL_OPENGLES2:mesa \
 	PACKAGE_qt6base-plugin-platforms-xcb:fontconfig \
 	PACKAGE_qt6base-plugin-platforms-xcb:harfbuzz \
