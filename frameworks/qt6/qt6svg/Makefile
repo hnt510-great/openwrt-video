@@ -8,8 +8,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6svg
-PKG_RELEASE:=2
-PKG_HASH:=db76aa3358cbbe6fce7da576ff4669cb9801920188c750d3b12783bbe97026e2
+PKG_RELEASE:=1
+PKG_HASH:=9bdf6fa4b5a2d91c3eaa2edd12263fdff0ae19d0ac25d3c99946cd4189a07123
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
 PKG_LICENSE:=LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only

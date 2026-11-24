@@ -74,7 +74,7 @@ QT_HOST_LIBEXECS:=$(QT_HOSTPKG_LIBEXECS)
 # the Qt module (e.g. qtbase) before including this file
 ifneq ($(QT_MODULE),)
 
-PKG_VERSION?=6.9.3
+PKG_VERSION?=6.11.3
 
 PKG_SOURCE_URL?=https://download.qt.io/archive/qt/$(basename $(PKG_VERSION))/$(PKG_VERSION)/submodules
 PKG_SYS_NAME?=$(QT_MODULE)
