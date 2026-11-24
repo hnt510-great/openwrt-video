@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6shadertools
 PKG_RELEASE:=1
-PKG_HASH:=629804ee86a35503e4b616f9ab5175caef3da07bd771cf88a24da3b5d4284567
+PKG_HASH:=d86079425ec71eecbb05f4d20623b0a403a7d21a5cfa7efb9734ea3d538d801b
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
 PKG_LICENSE:=LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
@@ -44,11 +44,15 @@ define Package/qt6shadertools
   CATEGORY:=Video
   SUBMENU:=Frameworks and Toolkits
   TITLE:=Qt6ShaderTools
-  BUILDONLY:=1
+  DEPENDS:=+qt6base-core +qt6base-gui +libstdcpp
   URL:=https://www.qt.io
 endef
 
 Build/InstallDev = $(Build/InstallDev/Qt)
+
+define Package/qt6shadertools/install
+	$(call Build/Install/Libs,$(1),libQt6ShaderTools)
+endef
 
 $(eval $(call BuildPackage,qt6shadertools))
 $(eval $(call HostBuild))

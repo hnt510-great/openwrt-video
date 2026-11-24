@@ -8,8 +8,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6tools
-PKG_RELEASE:=2
-PKG_HASH:=0cf7ab0e975fc57f5ce1375576a0a76e9ede25e6b01db3cf2339cd4d9750b4e9
+PKG_RELEASE:=1
+PKG_HASH:=524ca79ee653fa36d4644ce66a5c0825930ee2550ff1d0987e703a66fd6c61ec
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
 # license of the tools built (Qt Linguist tools, kmap2qmap)
@@ -51,9 +51,7 @@ QT6TOOLS_OPTIONS:= \
 	-DFEATURE_qtdiag=OFF \
 	-DFEATURE_qtplugininfo=OFF \
 	-DCMAKE_DISABLE_FIND_PACKAGE_WrapLibClang=ON \
-	-DCMAKE_DISABLE_FIND_PACKAGE_Qt6DBus=ON \
 	-DCMAKE_DISABLE_FIND_PACKAGE_Qt6Xml=ON \
-	-DCMAKE_DISABLE_FIND_PACKAGE_Qt6Widgets=ON \
 	-DCMAKE_DISABLE_FIND_PACKAGE_Qt6Quick=ON \
 	-DCMAKE_DISABLE_FIND_PACKAGE_Qt6QuickWidgets=ON \
 	-DCMAKE_DISABLE_FIND_PACKAGE_Qt6QmlLSPrivate=ON \
@@ -76,6 +74,8 @@ CMAKE_OPTIONS += \
 CMAKE_HOST_OPTIONS += \
 	$(QT6TOOLS_OPTIONS) \
 	-DFEATURE_kmap2qmap=OFF \
+	-DCMAKE_DISABLE_FIND_PACKAGE_Qt6DBus=ON \
+	-DCMAKE_DISABLE_FIND_PACKAGE_Qt6Widgets=ON \
 	-DCMAKE_REQUIRE_FIND_PACKAGE_Qt6Network=ON \
 	-DCMAKE_REQUIRE_FIND_PACKAGE_Qt6Qml=ON
 
@@ -85,11 +85,12 @@ define Package/qt6tools
   SUBMENU:=Frameworks and Toolkits
   TITLE:=Qt6 Linguist tools
   URL:=https://www.qt.io
-  DEPENDS:=+qt6base-core +qt6quick-qml +libstdcpp
+  DEPENDS:=+qt6base-core +qt6base-gui +qt6base-widgets +qt6quick-qml +libstdcpp
 endef
 
 define Package/qt6tools/install
-	$(INSTALL_DIR) $(1)/usr/bin/qt6
+	$(INSTALL_DIR) $(1)/usr/bin/qt6 $(1)/usr/lib
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libQt6UiTools.so.* $(1)/usr/lib/
 	# The Linguist tools are host builds, like moc and uic in qt6base-dev.
 	# x86_64 host and target share the ABI, and the binaries resolve the
 	# target Qt libraries through their RUNPATH. Designer and Linguist (the

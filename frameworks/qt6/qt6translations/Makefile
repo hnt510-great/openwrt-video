@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6translations
 PKG_RELEASE:=1
-PKG_HASH:=f36d545e6681b146fd79b3ebb74ef275e88694cf81eae8323327cae3bfc490a1
+PKG_HASH:=499e3067b91e53675eead7a54a3cd771c30939d04d03b4e67f12167484e290f2
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
 PKG_LICENSE:=LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only

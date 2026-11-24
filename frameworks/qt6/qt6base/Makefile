@@ -13,8 +13,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6base
-PKG_RELEASE:=6
-PKG_HASH:=c5a1a2f660356ec081febfa782998ae5ddbc5925117e64f50e4be9cd45b8dc6e
+PKG_RELEASE:=1
+PKG_HASH:=46de0710b594945a5d446ae44354daa386141c6903c53781b2ca547bc62f8f8f
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
 PKG_LICENSE:=LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
@@ -73,12 +73,12 @@ PKG_CONFIG_DEPENDS:= \
   CONFIG_PACKAGE_qt6base-plugin-platforms-vnc \
   CONFIG_PACKAGE_qt6base-plugin-imageformats-gif
 
-HOST_BUILD_DEPENDS:=pcre2/host libdouble-conversion/host
+HOST_BUILD_DEPENDS:=pcre2/host libdouble-conversion/host wayland/host
 # Forced features fail configure if their library is not staged:
 # FEATURE_libudev is forced on whenever UDEV is enabled, FEATURE_kms whenever
 # DRM is enabled. Neither is guaranteed through the DEPENDS of the selected
 # subpackages.
-PKG_BUILD_DEPENDS:=qt6base/host BUILD_qt6base-gui_UDEV&&PACKAGE_libudev-systemd:systemd BUILD_qt6base-gui_UDEV&&PACKAGE_libudev-zero:libudev-zero BUILD_qt6base-gui_DRM:libdrm \
+PKG_BUILD_DEPENDS:=qt6base/host wayland/host BUILD_qt6base-gui_UDEV&&PACKAGE_libudev-systemd:systemd BUILD_qt6base-gui_UDEV&&PACKAGE_libudev-zero:libudev-zero BUILD_qt6base-gui_DRM:libdrm \
 	BUILD_qt6base-gui_OPENGL_OPENGLES2:mesa \
 	PACKAGE_qt6base-plugin-platforms-xcb:fontconfig \
 	PACKAGE_qt6base-plugin-platforms-xcb:harfbuzz \
@@ -92,6 +92,7 @@ PKG_BUILD_DEPENDS:=qt6base/host BUILD_qt6base-gui_UDEV&&PACKAGE_libudev-systemd:
 	PACKAGE_qt6base-plugin-platforms-xcb:libxcb-cursor \
 	PACKAGE_qt6base-plugin-platforms-xcb:libxkbcommon \
 	PACKAGE_qt6waylandclient:wayland \
+	PACKAGE_qt6waylandclient:wayland-protocols \
 	PACKAGE_qt6waylandclient:libxkbcommon
 
 # KMS-based EGLFS integrations require both OpenGL ES and DRM
@@ -129,7 +130,7 @@ endef
 define Package/qt6base-core
   $(call Package/qt6base/Default)
   TITLE+=core
-  DEPENDS+=+zlib +libzstd +libstdcpp $(ATOMIC64_DEPENDS) +libpcre2-16 +libdouble-conversion +BUILD_qt6base-core_ICU:icu
+  DEPENDS+=+zlib +libzstd +liburing +glib2 +libstdcpp $(ATOMIC64_DEPENDS) +libpcre2-16 +libdouble-conversion +BUILD_qt6base-core_ICU:icu
 
 endef
 
@@ -306,6 +307,21 @@ define Package/qt6base-plugin-platforms-eglfs
   DEPENDS+=+qt6base-gui +qt6base-opengl +BUILD_qt6base-gui_UDEV:libudev +BUILD_qt6base-gui_DRM:libdrm
 endef
 
+define Package/qt6waylandclient
+  $(call Package/qt6base/Default)
+  TITLE:=Qt6 Wayland client platform plugins
+  DEPENDS:=@TARGET_x86_64 @USE_GLIBC +qt6base-gui +libwayland \
+	+BUILD_qt6base-gui_OPENGL_OPENGLES2:qt6base-opengl \
+	+libxkbcommon +libstdcpp
+endef
+
+define Package/qt6waylandclient-dev
+  $(call Package/qt6base/Default)
+  TITLE:=Qt6 Wayland client development files
+  DEPENDS:=@TARGET_x86_64 @USE_GLIBC +qt6base-dev +qt6waylandclient \
+	+wayland-scanner +wayland-protocols
+endef
+
 define Build/Prepare
 	$(call Build/Prepare/Default)
 	# qt6base takes custom mkspecs only from its source dir, see:
@@ -374,7 +390,7 @@ CMAKE_OPTIONS += \
 	-DFEATURE_accessibility=ON \
 	-DFEATURE_accessibility_atspi_bridge=OFF \
 	-DINPUT_doubleconversion=system \
-	-DFEATURE_glib=OFF \
+	-DFEATURE_glib=ON \
 	-DFEATURE_inotify=$(if $(CONFIG_BUILD_qt6base-core_INOTIFY),ON,OFF) \
 	-DFEATURE_icu=$(if $(CONFIG_BUILD_qt6base-core_ICU),ON,OFF) \
 	-DINPUT_pcre=system \
@@ -418,6 +434,7 @@ CMAKE_OPTIONS += \
 	-DFEATURE_linuxfb=$(if $(CONFIG_PACKAGE_qt6base-plugin-platforms-linuxfb),ON,OFF) \
 	-DFEATURE_vnc=$(if $(CONFIG_PACKAGE_qt6base-plugin-platforms-vnc),ON,OFF) \
 	-DFEATURE_wayland=$(if $(CONFIG_PACKAGE_qt6waylandclient),ON,OFF) \
+	-DFEATURE_wayland_client=$(if $(CONFIG_PACKAGE_qt6waylandclient),ON,OFF) \
 	-DFEATURE_xcb=$(if $(QT6BASE_XCB),ON,OFF) \
 	-DFEATURE_xkbcommon=$(if $(QT6BASE_XKBCOMMON),ON,OFF) \
 	-DFEATURE_xkbcommon_x11=$(if $(QT6BASE_XCB),ON,OFF) \
@@ -494,7 +511,7 @@ CMAKE_HOST_OPTIONS += \
 	-DFEATURE_accessibility=OFF \
 	-DFEATURE_accessibility_atspi_bridge=OFF \
 	-DINPUT_doubleconversion=system \
-	-DFEATURE_glib=OFF \
+	-DFEATURE_glib=ON \
 	-DFEATURE_inotify=OFF \
 	-DFEATURE_icu=OFF \
 	-DINPUT_pcre=system \
@@ -761,6 +778,48 @@ define Package/qt6base-dev/install
 		[ ! -d $(STAGING_DIR_HOSTPKG)/lib/cmake/Qt6$$$$m ] || \
 			$(CP) $(STAGING_DIR_HOSTPKG)/lib/cmake/Qt6$$$$m $(1)/usr/lib/cmake/; \
 	done
+	# Wayland client development files are owned by qt6waylandclient-dev.
+	rm -rf $(1)/usr/include/qt6/QtWayland* \
+		$(1)/usr/include/qt6/QtWlShellIntegration \
+		$(1)/usr/lib/cmake/Qt6Wayland* \
+		$(1)/usr/lib/cmake/Qt6WlShellIntegrationPrivate \
+		$(1)/usr/lib/pkgconfig/Qt6Wayland*.pc \
+		$(1)/usr/lib/qt6/metatypes/qt6wayland* \
+		$(1)/usr/lib/qt6/metatypes/qt6wlshellintegration*
+	find $(1)/usr/lib/cmake -type f -name '*.cmake' -exec \
+		sed -i 's|$(STAGING_DIR_HOSTPKG)|/usr|g' {} +
+endef
+
+define Package/qt6waylandclient/install
+	$(INSTALL_DIR) $(1)/usr/lib $(1)/usr/lib/qt6/plugins/platforms
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libQt6Wayland*.so.* $(1)/usr/lib/
+	[ ! -e $(PKG_INSTALL_DIR)/usr/lib/libQt6Wl*.so.* ] 2>/dev/null || \
+		$(CP) $(PKG_INSTALL_DIR)/usr/lib/libQt6Wl*.so.* $(1)/usr/lib/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/qt6/plugins/platforms/libqwayland*.so $(1)/usr/lib/qt6/plugins/platforms/
+	for d in wayland-decoration-client wayland-graphics-integration-client \
+		wayland-shell-integration; do \
+		[ ! -d $(PKG_INSTALL_DIR)/usr/lib/qt6/plugins/$$$$d ] || \
+			$(CP) $(PKG_INSTALL_DIR)/usr/lib/qt6/plugins/$$$$d $(1)/usr/lib/qt6/plugins/; \
+	done
+endef
+
+define Package/qt6waylandclient-dev/install
+	$(INSTALL_DIR) $(1)/usr/include/qt6 $(1)/usr/lib/cmake \
+		$(1)/usr/lib/pkgconfig $(1)/usr/lib/qt6/libexec \
+		$(1)/usr/lib/qt6/metatypes
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/qt6/QtWayland* $(1)/usr/include/qt6/
+	[ ! -d $(PKG_INSTALL_DIR)/usr/include/qt6/QtWlShellIntegration ] || \
+		$(CP) $(PKG_INSTALL_DIR)/usr/include/qt6/QtWlShellIntegration $(1)/usr/include/qt6/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/cmake/Qt6Wayland* $(1)/usr/lib/cmake/
+	[ ! -d $(PKG_INSTALL_DIR)/usr/lib/cmake/Qt6WlShellIntegrationPrivate ] || \
+		$(CP) $(PKG_INSTALL_DIR)/usr/lib/cmake/Qt6WlShellIntegrationPrivate $(1)/usr/lib/cmake/
+	[ ! -d $(STAGING_DIR_HOSTPKG)/lib/cmake/Qt6WaylandScannerTools ] || \
+		$(CP) $(STAGING_DIR_HOSTPKG)/lib/cmake/Qt6WaylandScannerTools $(1)/usr/lib/cmake/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/Qt6Wayland*.pc $(1)/usr/lib/pkgconfig/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/qt6/metatypes/qt6wayland* $(1)/usr/lib/qt6/metatypes/
+	[ ! -x $(STAGING_DIR_HOSTPKG)/lib/qt6/libexec/qtwaylandscanner ] || \
+		$(INSTALL_BIN) $(STAGING_DIR_HOSTPKG)/lib/qt6/libexec/qtwaylandscanner \
+			$(1)/usr/lib/qt6/libexec/
 	find $(1)/usr/lib/cmake -type f -name '*.cmake' -exec \
 		sed -i 's|$(STAGING_DIR_HOSTPKG)|/usr|g' {} +
 endef
@@ -793,4 +852,6 @@ $(eval $(call BuildPackage,qt6base-plugin-platforms-offscreen))
 $(eval $(call BuildPackage,qt6base-plugin-platforms-xcb))
 $(eval $(call BuildPackage,qt6base-plugin-platforms-vnc))
 $(eval $(call BuildPackage,qt6base-plugin-platforms-eglfs))
+$(eval $(call BuildPackage,qt6waylandclient))
+$(eval $(call BuildPackage,qt6waylandclient-dev))
 $(eval $(call HostBuild))
