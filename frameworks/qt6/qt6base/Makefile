@@ -13,7 +13,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6base
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_HASH:=46de0710b594945a5d446ae44354daa386141c6903c53781b2ca547bc62f8f8f
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
@@ -372,6 +372,7 @@ CMAKE_OPTIONS += \
 	-DFEATURE_optimize_size=ON \
 	-DFEATURE_reduce_exports=OFF \
 	-DFEATURE_reduce_relocations=OFF \
+	-DFEATURE_relocatable=OFF \
 	-DFEATURE_rpath=OFF \
 	-DQT_GENERATE_SBOM=OFF \
 	-DFEATURE_intelcet=OFF \
@@ -447,7 +448,7 @@ CMAKE_OPTIONS += \
 	-DFEATURE_mtdev=OFF \
 	-DFEATURE_tslib=OFF \
 	-DFEATURE_gif=$(if $(CONFIG_PACKAGE_qt6base-plugin-imageformats-gif),ON,OFF) \
-	-DFEATURE_ico=OFF \
+	-DFEATURE_ico=ON \
 	-DINPUT_libpng=system \
 	-DINPUT_libjpeg=system \
 	-DFEATURE_sql=$(if $(CONFIG_BUILD_qt6base_SQL),ON,OFF) \
@@ -620,6 +621,7 @@ endef
 
 define Package/qt6base-gui/install
 	$(call Build/Install/Libs,$(1),libQt6Gui)
+	$(call Build/Install/Plugins,$(1),imageformats,libqico)
 endef
 
 define Package/qt6base-network/install
@@ -745,9 +747,15 @@ define Package/qt6base-dev/install
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/cmake/. $(1)/usr/lib/cmake/
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/Qt6*.pc $(1)/usr/lib/pkgconfig/
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/qt6/mkspecs/. $(1)/usr/lib/qt6/mkspecs/
+	$(INSTALL_DATA) ./files/mkspecs/linux-openwrt-g++/qmake.conf \
+		$(1)/usr/lib/qt6/mkspecs/linux-openwrt-g++/qmake.conf
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/qt6/metatypes/. $(1)/usr/lib/qt6/metatypes/
 	$(CP) $(STAGING_DIR_HOSTPKG)/lib/qt6/mkspecs/linux-openwrt-host-g++ \
 		$(1)/usr/lib/qt6/mkspecs/
+	# On-device builds do not set OpenWrt's cross-build HOSTCC/HOSTCXX vars.
+	$(SED) '/^QMAKE_CC[[:space:]]*=/a\isEmpty(QMAKE_CC): QMAKE_CC = gcc' \
+		-e '/^QMAKE_CXX[[:space:]]*=/a\isEmpty(QMAKE_CXX): QMAKE_CXX = g++' \
+		$(1)/usr/lib/qt6/mkspecs/linux-openwrt-host-g++/qmake.conf
 	# Host-built command line tools run against the target Qt libraries.
 	for tool in moc uic rcc syncqt tracepointgen tracegen cmake_automoc_parser \
 		qlalr qvkgen; do \
@@ -755,7 +763,7 @@ define Package/qt6base-dev/install
 			$(INSTALL_BIN) $(STAGING_DIR_HOSTPKG)/lib/qt6/libexec/$$$$tool \
 				$(1)/usr/lib/qt6/libexec/; \
 	done
-	for tool in qmake6 qtpaths6 qdbuscpp2xml qdbusxml2cpp; do \
+	for tool in qmake6 qtpaths6 qdbuscpp2xml qdbusxml2cpp wasmdeployqt; do \
 		[ ! -f $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool ] || \
 			$(INSTALL_BIN) $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool $(1)/usr/bin/qt6/; \
 	done
@@ -786,8 +794,26 @@ define Package/qt6base-dev/install
 		$(1)/usr/lib/pkgconfig/Qt6Wayland*.pc \
 		$(1)/usr/lib/qt6/metatypes/qt6wayland* \
 		$(1)/usr/lib/qt6/metatypes/qt6wlshellintegration*
+	# Static private support libraries and disabled EglFS integration libs
+	# are not packaged on the target; drop their CMake configs so consumers
+	# see no dangling targets.
+	rm -rf $(1)/usr/lib/cmake/Qt6DeviceDiscoverySupportPrivate \
+		$(1)/usr/lib/cmake/Qt6FbSupportPrivate \
+		$(1)/usr/lib/cmake/Qt6InputSupportPrivate \
+		$(1)/usr/lib/cmake/Qt6KmsSupportPrivate \
+		$(if $(CONFIG_PACKAGE_qt6base-plugin-platforms-eglfs),, \
+			$(1)/usr/lib/cmake/Qt6EglFSDeviceIntegrationPrivate \
+			$(1)/usr/lib/cmake/Qt6EglFsKmsGbmSupportPrivate \
+			$(1)/usr/lib/cmake/Qt6EglFsKmsSupportPrivate)
 	find $(1)/usr/lib/cmake -type f -name '*.cmake' -exec \
 		sed -i 's|$(STAGING_DIR_HOSTPKG)|/usr|g' {} +
+	# OpenWrt links Qt shared libraries with -Wl,-Bsymbolic-functions even
+	# when FEATURE_reduce_relocations=OFF. Require PIC for consumers built
+	# via pkg-config or CMake so taking &Class::signal resolves through the
+	# GOT rather than an executable PLT stub.
+	$(SED) 's|^Cflags: |Cflags: -fPIC |' $(1)/usr/lib/pkgconfig/Qt6Platform.pc
+	printf '\nif(TARGET Qt6::Core)\n    set_property(TARGET Qt6::Core APPEND PROPERTY INTERFACE_COMPILE_OPTIONS "$$$$<$$$$<COMPILE_LANGUAGE:C,CXX>:-fPIC>")\nendif()\n' \
+		>> $(1)/usr/lib/cmake/Qt6Core/Qt6CoreConfigExtras.cmake
 endef
 
 define Package/qt6waylandclient/install
@@ -804,10 +830,13 @@ define Package/qt6waylandclient/install
 endef
 
 define Package/qt6waylandclient-dev/install
-	$(INSTALL_DIR) $(1)/usr/include/qt6 $(1)/usr/lib/cmake \
+	$(INSTALL_DIR) $(1)/usr/include/qt6 $(1)/usr/lib $(1)/usr/lib/cmake \
 		$(1)/usr/lib/pkgconfig $(1)/usr/lib/qt6/libexec \
 		$(1)/usr/lib/qt6/metatypes
 	$(CP) $(PKG_INSTALL_DIR)/usr/include/qt6/QtWayland* $(1)/usr/include/qt6/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libQt6Wayland*.so $(1)/usr/lib/
+	[ ! -e $(PKG_INSTALL_DIR)/usr/lib/libQt6Wl*.so ] 2>/dev/null || \
+		$(CP) $(PKG_INSTALL_DIR)/usr/lib/libQt6Wl*.so $(1)/usr/lib/
 	[ ! -d $(PKG_INSTALL_DIR)/usr/include/qt6/QtWlShellIntegration ] || \
 		$(CP) $(PKG_INSTALL_DIR)/usr/include/qt6/QtWlShellIntegration $(1)/usr/include/qt6/
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/cmake/Qt6Wayland* $(1)/usr/lib/cmake/

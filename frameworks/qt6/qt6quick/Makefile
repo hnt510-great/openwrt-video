@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qt6declarative
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_HASH:=6d6db328a02ae3bb0b1e6944aeef8dfe44cd6b55ab59b1708bbf0400f5759cb5
 
 PKG_MAINTAINER:=Mirko Vogt <mirko-openwrt@nanl.de>
@@ -608,7 +608,7 @@ define Package/qt6quick-tools/install
 		}; \
 	done
 	for tool in qmllint qmlformat qmldom qmltc qmlplugindump \
-		qmlprofiler qmltime; do \
+		qmlprofiler qmltime qmlcontextpropertydump; do \
 		[ ! -x $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool ] || { \
 			$(INSTALL_BIN) $(STAGING_DIR_HOSTPKG)/bin/qt6/$$$$tool \
 				$(1)/usr/bin/qt6/; \
@@ -642,8 +642,19 @@ define Package/qt6quick-dev/install
 		$(PKG_INSTALL_DIR)/usr/lib/pkgconfig/Qt6Quick*.pc \
 		$(PKG_INSTALL_DIR)/usr/lib/pkgconfig/Qt6Labs*.pc \
 		$(1)/usr/lib/pkgconfig/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libQt6QmlCompiler.so $(1)/usr/lib/
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.a $(1)/usr/lib/
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.prl $(1)/usr/lib/
+	# Drop CMake/pkg-config metadata for optional Labs/DesignHelpers libs
+	# that have no runtime package selected on the target.
+	rm -rf $(1)/usr/lib/cmake/Qt6LabsStyleKit* \
+		$(1)/usr/lib/cmake/Qt6LabsSynchronizer* \
+		$(1)/usr/lib/cmake/Qt6QuickShapesDesignHelpersPrivate \
+		$(1)/usr/lib/pkgconfig/Qt6LabsStyleKit*.pc \
+		$(1)/usr/lib/pkgconfig/Qt6LabsSynchronizer.pc \
+		$(if $(CONFIG_PACKAGE_qt6labs-wavefrontmesh),, \
+			$(1)/usr/lib/cmake/Qt6LabsWavefrontMesh* \
+			$(1)/usr/lib/pkgconfig/Qt6LabsWavefrontMesh.pc)
 	# Plugin CMake targets describe every QML plugin built for the target.
 	# Runtime packages install only a subset, so keep them out of the
 	# on-device tree; Qt loads QML modules by path at runtime.
