@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=weston
-PKG_RELEASE:=13
+PKG_RELEASE:=1
 
 PKG_VERSION:=16.0.0
 PKG_MAJOR_VERSION:=$(firstword $(subst .,$(space),$(PKG_VERSION)))
@@ -15,7 +15,6 @@ PKG_LICENSE_FILES:=COPYING
 
 PKG_INSTALL:=1
 PKG_BUILD_DEPENDS:=wayland/host
-PKG_CONFIG_DEPENDS:=CONFIG_WESTON_VNC CONFIG_WESTON_RDP CONFIG_WESTON_RDP_AUDIO CONFIG_WESTON_XWAYLAND CONFIG_WESTON_PIPEWIRE
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/meson.mk
@@ -29,57 +28,22 @@ define Package/weston
   DEPENDS:=+gstreamer1-plugins-base +libcairo +libevdev +libdisplay-info \
 	+libgst1allocators +libgst1app +libgst1video +libgstreamer1 +libinput \
 	+libmesa +libpango +libseat +libwayland +libwebp +libxkbcommon +pixman \
-	+seatd +vulkan-loader +wayland-protocols +xkeyboard-config \
-	+WESTON_VNC:libaml +WESTON_VNC:libneatvnc +WESTON_VNC:libpam \
-	+WESTON_RDP:libfreerdp3 +WESTON_RDP_AUDIO:libpipewire +WESTON_PIPEWIRE:libpipewire \
-	+WESTON_XWAYLAND:xwayland +WESTON_XWAYLAND:libxcb +WESTON_XWAYLAND:libXcursor
+	+seatd +vulkan-loader +wayland-protocols +xkeyboard-config
 endef
 
 define Package/weston/description
-endef
-
-define Package/weston/config
-config WESTON_VNC
-	bool "Enable authenticated TLS VNC backend"
-	depends on PACKAGE_weston
-	default n
-
-config WESTON_RDP
-	bool "Enable authenticated RDP desktop sharing"
-	depends on PACKAGE_weston
-	default n
-
-config WESTON_RDP_AUDIO
-	bool "Enable PipeWire RDP audio playback and microphone"
-	# Conditional libpipewire target constraints propagate into PACKAGE_weston.
-	# Keep this independent of WESTON_RDP/PACKAGE_weston to avoid a Kconfig cycle.
-	depends on OPENWRT_SYSTEMD && TARGET_x86_64 && USE_GLIBC
-	default n
-
-config WESTON_PIPEWIRE
-	bool "Enable PipeWire desktop mirror for Sunshine"
-	depends on OPENWRT_SYSTEMD && TARGET_x86_64 && USE_GLIBC
-	default n
-
-config WESTON_XWAYLAND
-	bool "Enable X11 applications through Xwayland"
-	# Xwayland's target constraints propagate back into PACKAGE_weston.
-	# Keep this option independent of the package to avoid a dependency cycle.
-	depends on TARGET_x86_64 && USE_GLIBC
-	default n
 endef
 
 MESON_ARGS += \
 	--wrap-mode=nofallback \
 	-Dbackend-drm=true \
 	-Dbackend-headless=false \
-	-Dbackend-pipewire=$(if $(CONFIG_WESTON_PIPEWIRE),true,false) \
-	-Dbackend-rdp=$(if $(CONFIG_WESTON_RDP),true,false) \
-	-Dbackend-rdp-audio=$(if $(CONFIG_WESTON_RDP_AUDIO),true,false) \
-	-Dbackend-vnc=$(if $(CONFIG_WESTON_VNC),true,false) \
+	-Dbackend-pipewire=false \
+	-Dbackend-rdp=false \
+	-Dbackend-vnc=false \
 	-Dbackend-x11=false \
 	-Dbackend-wayland=true \
-	-Dxwayland=$(if $(CONFIG_WESTON_XWAYLAND),true,false) \
+	-Dxwayland=false \
 	-Dcolor-management-lcms=false \
 	-Dsystemd=false \
 	-Ddeprecated-pipewire=false \
@@ -96,11 +60,6 @@ MESON_ARGS += \
 	-Dtools=calibrator,debug,info,terminal,touch-calibrator \
 	-Dtests=false \
 	-Ddoc=false
-
-define Build/Prepare
-	$(call Build/Prepare/Default)
-	$(CP) ./files/rdpaudio.c ./files/rdpaudio.h $(PKG_BUILD_DIR)/libweston/backend-rdp/
-endef
 
 define Build/InstallDev
 	$(INSTALL_DIR) $(1)/usr/include
